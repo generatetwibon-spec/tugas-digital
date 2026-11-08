@@ -42,9 +42,9 @@ function SubjectsContent() {
   // Delete State
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const fetchSubjects = useCallback(async () => {
+  const fetchSubjects = useCallback(async (isInitial = false) => {
     try {
-      setLoading(true);
+      if (isInitial) setLoading(true);
       const res = await fetch("/api/admin/subjects");
       if (!res.ok) throw new Error("Gagal mengambil data");
       const data = await res.json();
@@ -52,12 +52,12 @@ function SubjectsContent() {
     } catch {
       toast.error("Gagal memuat daftar penugasan");
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchSubjects();
+    fetchSubjects(true);
   }, [fetchSubjects]);
 
   const handleOpenAdd = () => {

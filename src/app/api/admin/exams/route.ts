@@ -24,6 +24,9 @@ export async function GET(request: Request) {
     const exams = await prisma.exam.findMany({
       where: { classId },
       include: {
+        questions: {
+          orderBy: { order: 'asc' },
+        },
         _count: {
           select: { questions: true, sessions: true },
         },

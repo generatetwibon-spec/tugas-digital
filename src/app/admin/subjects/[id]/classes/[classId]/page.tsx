@@ -124,52 +124,45 @@ function ClassHubContent() {
   // Selected Exam for viewing questions inside Tab 2
   const [activeExamId, setActiveExamId] = useState<string | null>(null);
 
-  // Fetch Class Metadata, Students, and Exams
-  const loadClassData = useCallback(async () => {
+  // Fetch Class Metadata, Students, and Exams in ONE parallel sweep (Instant & Super Fast)
+  const loadClassData = useCallback(async (isInitial = false) => {
     try {
-      setLoading(true);
-      // 1. Fetch Class & Subject
-      const resClass = await fetch(`/api/admin/classes/${classId}`);
-      if (!resClass.ok) throw new Error("Gagal memuat info kelas");
-      const classData = await resClass.json();
-      setClassMeta(classData);
+      if (isInitial) setLoading(true);
 
-      // 2. Fetch Students & their statuses
-      const resStudents = await fetch(`/api/admin/classes/${classId}/students`);
+      const [resClass, resStudents, resExams] = await Promise.all([
+        fetch(`/api/admin/classes/${classId}`),
+        fetch(`/api/admin/classes/${classId}/students`),
+        fetch(`/api/admin/exams?classId=${classId}`),
+      ]);
+
+      if (resClass.ok) {
+        const classData = await resClass.json();
+        setClassMeta(classData);
+      }
+
       if (resStudents.ok) {
         const studentData = await resStudents.json();
         setStudents(studentData.students || []);
       }
 
-      // 3. Fetch Exams & Questions for this class
-      const resExams = await fetch(`/api/admin/exams?classId=${classId}`);
       if (resExams.ok) {
         const examsData = await resExams.json();
-        // Fetch detailed questions for each exam
-        const detailedExams: ExamItem[] = await Promise.all(
-          examsData.map(async (e: any) => {
-            const singleRes = await fetch(`/api/admin/exams/${e.id}`);
-            if (singleRes.ok) {
-              return await singleRes.json();
-            }
-            return { ...e, questions: [] };
-          })
-        );
-        setExams(detailedExams);
-        if (detailedExams.length > 0 && !activeExamId) {
-          setActiveExamId(detailedExams[0].id);
-        }
+        setExams(examsData || []);
+        setActiveExamId((prev) => {
+          if (prev && examsData.some((e: any) => e.id === prev)) return prev;
+          return examsData.length > 0 ? examsData[0].id : null;
+        });
       }
     } catch {
       toast.error("Gagal memuat data kelas");
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
-  }, [classId, activeExamId]);
+  }, [classId]);
 
   useEffect(() => {
     if (classId) {
-      loadClassData();
+      loadClassData(true);
     }
   }, [classId, loadClassData]);
 
@@ -201,7 +194,7 @@ function ClassHubContent() {
       setSingleNim("");
       setSingleName("");
       setBulkText("");
-      loadClassData();
+      loadClassData(false);
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan");
     } finally {
@@ -219,7 +212,7 @@ function ClassHubContent() {
       );
       if (res.ok) {
         toast.success("Mahasiswa berhasil dihapus");
-        loadClassData();
+        loadClassData(false);
       } else {
         toast.error("Gagal menghapus mahasiswa");
       }
@@ -261,7 +254,7 @@ function ClassHubContent() {
 
       toast.success("Data mahasiswa berhasil diperbarui");
       setIsEditStudentModal(false);
-      loadClassData();
+      loadClassData(false);
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan");
     } finally {
@@ -287,7 +280,7 @@ function ClassHubContent() {
       if (!res.ok) throw new Error(data.error || "Gagal mereset sesi ujian");
 
       toast.success("Sesi ujian mahasiswa berhasil direset");
-      loadClassData();
+      loadClassData(false);
     } catch (err: any) {
       toast.error(err.message || "Gagal mereset sesi ujian");
     }
@@ -312,7 +305,7 @@ function ClassHubContent() {
       if (activeExamId === exam.id) {
         setActiveExamId(null);
       }
-      loadClassData();
+      loadClassData(false);
     } catch (err: any) {
       toast.error(err.message || "Gagal menghapus penugasan");
     }
@@ -353,7 +346,7 @@ function ClassHubContent() {
           : "Penugasan baru berhasil dibuat"
       );
       setIsExamModalOpen(false);
-      loadClassData();
+      loadClassData(false);
     } catch (err: any) {
       toast.error(err.message || "Terjadi masalah");
     } finally {
@@ -361,9 +354,14 @@ function ClassHubContent() {
     }
   };
 
-  // Toggle Exam Active Status
+  // Toggle Exam Active Status (Optimistic Update - Instant!)
   const handleToggleExamStatus = async (exam: ExamItem) => {
     const newStatus = !exam.isActive;
+    // Update lokal instan di state tanpa menunggu jaringan
+    setExams((prev) =>
+      prev.map((e) => (e.id === exam.id ? { ...e, isActive: newStatus } : e))
+    );
+
     try {
       const res = await fetch(`/api/admin/exams/${exam.id}`, {
         method: "PUT",
@@ -376,9 +374,17 @@ function ClassHubContent() {
             ? `Penugasan "${exam.title}" sekarang AKTIF (Bisa diakses mahasiswa)`
             : `Penugasan "${exam.title}" DINONAKTIFKAN (Tutup)`
         );
-        loadClassData();
+      } else {
+        // Kembalikan status jika ada kegagalan
+        setExams((prev) =>
+          prev.map((e) => (e.id === exam.id ? { ...e, isActive: !newStatus } : e))
+        );
+        toast.error("Gagal mengubah status penugasan");
       }
     } catch {
+      setExams((prev) =>
+        prev.map((e) => (e.id === exam.id ? { ...e, isActive: !newStatus } : e))
+      );
       toast.error("Gagal mengubah status penugasan");
     }
   };
@@ -431,7 +437,7 @@ function ClassHubContent() {
         editingQuestion ? "Soal berhasil diperbarui" : "Soal baru ditambahkan"
       );
       setIsQuestionModalOpen(false);
-      loadClassData();
+      loadClassData(false);
     } catch (err: any) {
       toast.error(err.message || "Gagal menyimpan soal");
     } finally {
@@ -439,19 +445,25 @@ function ClassHubContent() {
     }
   };
 
-  // Delete Question
+  // Delete Question (Instant Optimistic Removal)
   const handleDeleteQuestion = async (qId: string) => {
     if (!confirm("Hapus soal ini?")) return;
+    setExams((prev) =>
+      prev.map((e) => ({
+        ...e,
+        questions: e.questions.filter((q) => q.id !== qId),
+      }))
+    );
     try {
       await fetch(`/api/admin/questions/${qId}`, { method: "DELETE" });
       toast.success("Soal berhasil dihapus");
-      loadClassData();
     } catch {
       toast.error("Gagal menghapus soal");
+      loadClassData(false);
     }
   };
 
-  // Reorder Question
+  // Reorder Question (Instant Optimistic Swap)
   const handleMoveQuestionOrder = async (
     exam: ExamItem,
     index: number,
@@ -463,6 +475,13 @@ function ClassHubContent() {
 
     const currentQ = questions[index];
     const targetQ = questions[targetIndex];
+
+    const swapped = [...questions];
+    swapped[index] = { ...targetQ, order: currentQ.order };
+    swapped[targetIndex] = { ...currentQ, order: targetQ.order };
+    setExams((prev) =>
+      prev.map((e) => (e.id === exam.id ? { ...e, questions: swapped } : e))
+    );
 
     try {
       await Promise.all([
@@ -477,9 +496,9 @@ function ClassHubContent() {
           body: JSON.stringify({ order: currentQ.order }),
         }),
       ]);
-      loadClassData();
     } catch {
       toast.error("Gagal mengubah urutan");
+      loadClassData(false);
     }
   };
 

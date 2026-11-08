@@ -49,30 +49,33 @@ function SubjectClassesContent() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (isInitial = false) => {
     try {
-      setLoading(true);
-      // Fetch subject info
-      const resSubject = await fetch(`/api/admin/subjects/${subjectId}`);
-      if (!resSubject.ok) throw new Error("Gagal memuat mata kuliah");
-      const subjectData = await resSubject.json();
-      setSubject(subjectData);
+      if (isInitial) setLoading(true);
+      // Fetch subject info & classes in parallel
+      const [resSubject, resClasses] = await Promise.all([
+        fetch(`/api/admin/subjects/${subjectId}`),
+        fetch(`/api/admin/classes?subjectId=${subjectId}`),
+      ]);
 
-      // Fetch classes for this subject
-      const resClasses = await fetch(`/api/admin/classes?subjectId=${subjectId}`);
-      if (!resClasses.ok) throw new Error("Gagal memuat kelas");
-      const classesData = await resClasses.json();
-      setClasses(classesData);
+      if (resSubject.ok) {
+        const subjectData = await resSubject.json();
+        setSubject(subjectData);
+      }
+      if (resClasses.ok) {
+        const classesData = await resClasses.json();
+        setClasses(classesData);
+      }
     } catch {
       toast.error("Gagal memuat data kelas");
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
     }
   }, [subjectId]);
 
   useEffect(() => {
     if (subjectId) {
-      fetchData();
+      fetchData(true);
     }
   }, [subjectId, fetchData]);
 

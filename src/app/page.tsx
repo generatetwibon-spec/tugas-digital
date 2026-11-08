@@ -5,7 +5,6 @@ import {
   Clock,
   FileEdit,
   ArrowRight,
-  Lock,
   Info,
   CheckCircle2,
 } from "lucide-react";
@@ -53,14 +52,6 @@ export default async function HomePage() {
               </span>
             </div>
           </div>
-
-          <Link
-            href="/admin/login"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-emerald-700 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-emerald-600 hover:bg-emerald-50 transition-colors"
-          >
-            <Lock className="w-3.5 h-3.5" />
-            <span>Portal Dosen</span>
-          </Link>
         </div>
       </header>
 

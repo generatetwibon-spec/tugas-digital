@@ -47,6 +47,7 @@ model Student {
   createdAt DateTime @default(now())
 
   @@unique([classId, nim])
+  @@index([nim])
 }
 
 model Exam {
@@ -61,6 +62,9 @@ model Exam {
   updatedAt       DateTime      @updatedAt
   questions       Question[]
   sessions        ExamSession[]
+
+  @@index([classId])
+  @@index([isActive])
 }
 
 model Question {
@@ -73,6 +77,8 @@ model Question {
   allowFileUpload Boolean  @default(false) // Sakelar upload file/diagram/gambar
   fileRequired    Boolean  @default(false) // Wajib upload jika true
   answers         Answer[]
+
+  @@index([examId, order])
 }
 
 model ExamSession {
@@ -86,6 +92,10 @@ model ExamSession {
   startedAt   DateTime  @default(now())
   submittedAt DateTime?
   answers     Answer[]
+
+  @@index([studentNim])
+  @@index([examId, studentNim])
+  @@index([submittedAt])
 }
 
 model Answer {

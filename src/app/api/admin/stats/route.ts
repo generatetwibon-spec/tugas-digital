@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, successResponse, errorResponse } from "@/lib/utils";
 
@@ -7,47 +6,53 @@ export async function GET() {
     const { error } = await requireAdmin();
     if (error) return error;
 
-    const [subjectCount, classCount, studentCount, activeExamCount, sessionCount] =
-      await Promise.all([
-        prisma.subject.count(),
-        prisma.class.count(),
-        prisma.student.count(),
-        prisma.exam.count({ where: { isActive: true } }),
-        prisma.examSession.count({ where: { submittedAt: { not: null } } }),
-      ]);
-
-    const activeExams = await prisma.exam.findMany({
-      where: { isActive: true },
-      include: {
-        class: {
-          include: {
-            subject: true,
+    // Eksekusi paralel 100% via Promise.all untuk kecepatan loading maksimal
+    const [
+      subjectCount,
+      classCount,
+      studentCount,
+      activeExamCount,
+      sessionCount,
+      activeExams,
+      recentSubmissions,
+    ] = await Promise.all([
+      prisma.subject.count(),
+      prisma.class.count(),
+      prisma.student.count(),
+      prisma.exam.count({ where: { isActive: true } }),
+      prisma.examSession.count({ where: { submittedAt: { not: null } } }),
+      prisma.exam.findMany({
+        where: { isActive: true },
+        include: {
+          class: {
+            include: {
+              subject: true,
+            },
+          },
+          _count: {
+            select: { sessions: true },
           },
         },
-        _count: {
-          select: { sessions: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-    });
-
-    const recentSubmissions = await prisma.examSession.findMany({
-      where: { submittedAt: { not: null } },
-      orderBy: { submittedAt: "desc" },
-      take: 6,
-      include: {
-        exam: {
-          include: {
-            class: {
-              include: {
-                subject: true,
+        orderBy: { createdAt: "desc" },
+        take: 6,
+      }),
+      prisma.examSession.findMany({
+        where: { submittedAt: { not: null } },
+        orderBy: { submittedAt: "desc" },
+        take: 6,
+        include: {
+          exam: {
+            include: {
+              class: {
+                include: {
+                  subject: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+    ]);
 
     return successResponse({
       subjectCount,

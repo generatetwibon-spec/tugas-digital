@@ -1,26 +1,83 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-primary-50: #ECFDF5;
+  --color-primary-100: #D1FAE5;
+  --color-primary-200: #A7F3D0;
+  --color-primary-300: #6EE7B7;
+  --color-primary-400: #34D399;
+  --color-primary-500: #10B981;
+  --color-primary-600: #059669;
+  --color-primary-700: #047857;
+  --color-primary-800: #065F46;
+  --color-primary-900: #064E3B;
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Global exam security styles */
+.exam-secure {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+.exam-secure * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Allow typing in textareas */
+.exam-secure textarea,
+.exam-secure input[type="text"] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Watermark pattern */
+.watermark {
+  position: relative;
+}
+
+.watermark::after {
+  content: attr(data-watermark);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 200%;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.03);
+  transform: rotate(-30deg);
+  pointer-events: none;
+  z-index: 9999;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 80px;
+  letter-spacing: 10px;
+}
+
+/* Print protection */
+@media print {
+  body {
+    display: none !important;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }

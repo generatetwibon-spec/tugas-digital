@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  name        String
+  level       String?  // Contoh: "Kelas 5", "Semester 3"
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  classes     Class[]
+}
+
+model Class {
+  id        String    @id @default(cuid())
+  name      String    // Contoh: "5A", "5B", "TI-3A"
+  subjectId String
+  subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  students  Student[]
+  exams     Exam[]
+
+  @@unique([subjectId, name])
+}
+
+model Student {
+  id        String   @id @default(cuid())
+  nim       String
+  name      String
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([classId, nim])
+}
+
+model Exam {
+  id              String        @id @default(cuid())
+  title           String        // Contoh: "UTS", "Tugas 1", "Tugas Mandiri 2"
+  classId         String
+  class           Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  durationMinutes Int           @default(90)
+  minWords        Int           @default(0)
+  isActive        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  questions       Question[]
+  sessions        ExamSession[]
+}
+
+model Question {
+  id              String   @id @default(cuid())
+  examId          String
+  exam            Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  text            String
+  order           Int
+  points          Int      @default(10)
+  allowFileUpload Boolean  @default(false) // Sakelar upload file/diagram/gambar
+  fileRequired    Boolean  @default(false) // Wajib upload jika true
+  answers         Answer[]
+}
+
+model ExamSession {
+  id          String    @id @default(cuid())
+  examId      String
+  exam        Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentName String
+  studentNim  String
+  ipAddress   String?
+  userAgent   String?
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+  answers     Answer[]
+}
+
+model Answer {
+  id         String      @id @default(cuid())
+  sessionId  String
+  session    ExamSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer     String      @default("")
+  wordCount  Int         @default(0)
+  fileUrl    String?     // URL file jika dosen menyalakan switch upload
+  fileName   String?     // Nama file asli
+  answeredAt DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@unique([sessionId, questionId])
+}
+
+model LandingSetting {
+  id                String   @id @default("default")
+  universityName    String   @default("Universitas")
+  portalTitle       String   @default("Sistem Ujian Digital")
+  portalSubtitle    String   @default("Platform Evaluasi & Penugasan Akademik Mahasiswa")
+  announcementTitle String   @default("Petunjuk & Tata Tertib Ujian")
+  announcementBody  String   @default("1. Pastikan koneksi internet stabil.\n2. Masukkan NIM untuk verifikasi identitas.\n3. Kerjakan dengan mandiri dan teliti.")
+  bannerImageUrl    String?
+  updatedAt         DateTime @updatedAt
+}

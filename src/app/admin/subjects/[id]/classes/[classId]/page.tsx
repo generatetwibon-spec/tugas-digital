@@ -124,6 +124,7 @@ function ClassHubContent() {
 
   // Selected Exam for viewing questions inside Tab 2
   const [activeExamId, setActiveExamId] = useState<string | null>(null);
+  const [downloadingSessionId, setDownloadingSessionId] = useState<string | null>(null);
 
   // Fetch Class Metadata, Students, and Exams in ONE parallel sweep (Instant & Super Fast)
   const loadClassData = useCallback(async (isInitial = false) => {
@@ -505,6 +506,10 @@ function ClassHubContent() {
 
   // Download PDF from student row
   const handleDownloadStudentPDF = async (sessionId: string) => {
+    if (downloadingSessionId) return; // Mencegah spam klik / unduhan ganda
+    setDownloadingSessionId(sessionId);
+    const toastId = toast.loading("Sedang menyiapkan lembar jawaban PDF...");
+
     try {
       const res = await fetch(`/api/exam/${sessionId}/questions`);
       if (!res.ok) throw new Error("Gagal mengambil lembar jawaban");
@@ -637,9 +642,13 @@ function ClassHubContent() {
       }
 
       doc.save(`Jawaban_${data.studentNim}_${data.studentName.replace(/\s+/g, "_")}.pdf`);
+      toast.dismiss(toastId);
       toast.success("Lembar jawaban PDF berhasil diunduh");
     } catch {
+      toast.dismiss(toastId);
       toast.error("Gagal mengunduh file PDF");
+    } finally {
+      setDownloadingSessionId(null);
     }
   };
 
@@ -798,9 +807,17 @@ function ClassHubContent() {
                                         <>
                                           <button
                                             onClick={() => handleDownloadStudentPDF(st.sessionId!)}
-                                            className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 underline cursor-pointer"
+                                            disabled={downloadingSessionId !== null}
+                                            className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 disabled:text-slate-400 underline cursor-pointer disabled:cursor-not-allowed inline-flex items-center gap-1"
                                           >
-                                            Unduh PDF
+                                            {downloadingSessionId === st.sessionId && (
+                                              <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                            )}
+                                            <span>
+                                              {downloadingSessionId === st.sessionId
+                                                ? "Menyiapkan..."
+                                                : "Unduh PDF"}
+                                            </span>
                                           </button>
                                           <button
                                             onClick={() => handleResetStudentSession(st.sessionId!, student.name)}

@@ -46,6 +46,7 @@ function ExamRegisterContent() {
   const [availableExams, setAvailableExams] = useState<AvailableExam[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string>("");
   const [startingSession, setStartingSession] = useState(false);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   // Check NIM against database
   const handleCheckNim = async (e?: React.FormEvent) => {
@@ -130,6 +131,10 @@ function ExamRegisterContent() {
 
   // Download PDF if already submitted
   const handleDownloadExistingPDF = async (sessionId: string) => {
+    if (downloadingPDF) return; // Mencegah spam klik
+    setDownloadingPDF(true);
+    const toastId = toast.loading("Sedang menyiapkan lembar jawaban PDF...");
+
     try {
       const res = await fetch(`/api/exam/${sessionId}/questions`);
       if (!res.ok) throw new Error("Gagal mengambil data jawaban");
@@ -251,9 +256,13 @@ function ExamRegisterContent() {
       }
 
       doc.save(`Lembar_Jawaban_${data.studentNim}.pdf`);
+      toast.dismiss(toastId);
       toast.success("Lembar jawaban PDF berhasil diunduh");
     } catch {
+      toast.dismiss(toastId);
       toast.error("Gagal mengunduh file PDF");
+    } finally {
+      setDownloadingPDF(false);
     }
   };
 
@@ -409,10 +418,20 @@ function ExamRegisterContent() {
                           <button
                             type="button"
                             onClick={() => handleDownloadExistingPDF(selectedExam.sessionId!)}
-                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs shadow-xs cursor-pointer transition-colors"
+                            disabled={downloadingPDF}
+                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold text-xs shadow-xs cursor-pointer transition-colors"
                           >
-                            <Download className="w-4 h-4" />
-                            <span>Unduh Salinan Lembar Jawaban (PDF)</span>
+                            {downloadingPDF ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Menyiapkan Berkas PDF...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4" />
+                                <span>Unduh Salinan Lembar Jawaban (PDF)</span>
+                              </>
+                            )}
                           </button>
                         )}
                       </div>

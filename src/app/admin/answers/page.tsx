@@ -79,6 +79,7 @@ export default function AnswersReviewPage() {
 
   // Detail Modal
   const [activeSession, setActiveSession] = useState<StudentSession | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // Initial load: subjects
   useEffect(() => {
@@ -182,6 +183,10 @@ export default function AnswersReviewPage() {
 
   // Generate single student PDF
   const handleDownloadPDF = async (session: StudentSession) => {
+    if (downloadingId) return; // Mencegah spam klik / unduhan dobel
+    setDownloadingId(session.id);
+    const toastId = toast.loading(`Sedang memproses PDF ${session.studentName}...`);
+
     try {
       const doc = new jsPDF({
         orientation: "portrait",
@@ -345,10 +350,14 @@ export default function AnswersReviewPage() {
       doc.save(
         `Jawaban_UTS_${session.studentNim}_${session.studentName.replace(/\s+/g, "_")}.pdf`
       );
+      toast.dismiss(toastId);
       toast.success(`PDF ${session.studentName} berhasil diunduh`);
     } catch (err) {
       console.error(err);
+      toast.dismiss(toastId);
       toast.error("Gagal men-generate file PDF");
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -601,10 +610,20 @@ export default function AnswersReviewPage() {
                         </button>
                         <button
                           onClick={() => handleDownloadPDF(s)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold shadow-xs cursor-pointer transition-colors"
+                          disabled={downloadingId !== null}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-semibold shadow-xs cursor-pointer transition-colors"
                         >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>PDF</span>
+                          {downloadingId === s.id ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>PDF...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-3.5 h-3.5" />
+                              <span>PDF</span>
+                            </>
+                          )}
                         </button>
                         <button
                           onClick={() => handleDeleteSession(s)}
@@ -644,10 +663,20 @@ export default function AnswersReviewPage() {
 
               <button
                 onClick={() => handleDownloadPDF(activeSession)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold cursor-pointer shadow-xs"
+                disabled={downloadingId !== null}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-semibold cursor-pointer shadow-xs transition-colors"
               >
-                <Download className="w-3.5 h-3.5" />
-                <span>Unduh PDF</span>
+                {downloadingId === activeSession.id ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Menyiapkan PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Unduh PDF</span>
+                  </>
+                )}
               </button>
             </div>
 

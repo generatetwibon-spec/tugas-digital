@@ -22,11 +22,13 @@ function ExamCompleteContent() {
   const [downloading, setDownloading] = useState(false);
 
   const handleDownloadPDF = async () => {
+    if (downloading) return; // Cegah double click / spam unduh
     if (!sessionId) {
       toast.error("ID sesi tidak ditemukan");
       return;
     }
 
+    const toastId = toast.loading("Sedang menyiapkan lembar jawaban PDF Anda...");
     try {
       setDownloading(true);
       const res = await fetch(`/api/exam/${sessionId}/questions`);
@@ -144,8 +146,10 @@ function ExamCompleteContent() {
       }
 
       doc.save(`Lembar_Jawaban_${data.studentNim}.pdf`);
+      toast.dismiss(toastId);
       toast.success("Salinan lembar jawaban PDF berhasil diunduh!");
     } catch {
+      toast.dismiss(toastId);
       toast.error("Gagal mengunduh berkas PDF");
     } finally {
       setDownloading(false);

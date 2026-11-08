@@ -145,9 +145,11 @@ function ExamSessionContent() {
 
         if (!res.ok) {
           toast.error(data.error || "Gagal memuat ujian");
-          if (res.status === 400 && data.error?.includes("dikumpulkan")) {
-            router.replace(`/exam/complete?sessionId=${sessionId}`);
-          }
+          return;
+        }
+
+        if (data.submittedAt) {
+          router.replace(`/exam/complete?sessionId=${sessionId}`);
           return;
         }
 

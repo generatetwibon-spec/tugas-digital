@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { loadImageAsDataUrl } from "@/lib/pdf-helpers";
 
 interface SubjectOption {
   id: string;
@@ -180,7 +181,7 @@ export default function AnswersReviewPage() {
   }, [fetchSessions]);
 
   // Generate single student PDF
-  const handleDownloadPDF = (session: StudentSession) => {
+  const handleDownloadPDF = async (session: StudentSession) => {
     try {
       const doc = new jsPDF({
         orientation: "portrait",
@@ -251,29 +252,80 @@ export default function AnswersReviewPage() {
       doc.setFontSize(11);
       doc.setTextColor(5, 100, 70);
       doc.text(`JAWABAN SOAL ESSAY — ${currentExam.toUpperCase()}`, 14, currentY);
-      currentY += 4;
+      currentY += 5;
 
-      const answerRows = session.answers.map((ans, idx) => {
-        const fileInfo = ans.fileName ? `\n\n[FILE LAMPIRAN]: ${ans.fileName} (${ans.fileUrl})` : "";
-        return [
-          `Soal No. ${idx + 1} (Bobot: ${ans.question.points} Poin)\n${ans.question.text}\n\n[JAWABAN MAHASISWA] (Panjang: ${ans.wordCount} kata):\n${ans.answer || "(Mahasiswa tidak memberikan jawaban)"}${fileInfo}`,
-        ];
-      });
+      for (let idx = 0; idx < session.answers.length; idx++) {
+        const ans = session.answers[idx];
 
-      autoTable(doc, {
-        body: answerRows,
-        startY: currentY,
-        theme: "grid",
-        styles: {
-          fontSize: 9,
-          cellPadding: 4,
-          textColor: [30, 30, 30],
-          overflow: "linebreak",
-        },
-        headStyles: {
-          fillColor: [240, 245, 240],
-        },
-      });
+        if (currentY > 230) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        const isImg =
+          ans.fileUrl &&
+          /\.(png|jpe?g|webp)$/i.test(ans.fileUrl.split("?")[0]);
+
+        const fileNote = ans.fileName
+          ? isImg
+            ? `\n\n[FILE LAMPIRAN TERVERIFIKASI]: ${ans.fileName} (Gambar dicetak di bawah)`
+            : `\n\n[FILE LAMPIRAN]: ${ans.fileName}\nTautan: ${ans.fileUrl}`
+          : "";
+
+        const cellText = `Soal No. ${idx + 1} (Bobot: ${ans.question.points} Poin)\n${ans.question.text}\n\n[JAWABAN MAHASISWA] (Panjang: ${ans.wordCount} kata):\n${ans.answer || "(Mahasiswa tidak memberikan jawaban)"}${fileNote}`;
+
+        autoTable(doc, {
+          body: [[cellText]],
+          startY: currentY,
+          theme: "grid",
+          styles: {
+            fontSize: 9,
+            cellPadding: 4,
+            textColor: [30, 30, 30],
+            overflow: "linebreak",
+          },
+          headStyles: {
+            fillColor: [240, 245, 240],
+          },
+        });
+
+        currentY = (doc as any).lastAutoTable.finalY + 3;
+
+        // Cetak gambar jika ada
+        if (isImg && ans.fileUrl) {
+          const loadedImg = await loadImageAsDataUrl(ans.fileUrl);
+          if (loadedImg) {
+            const pdfW = Math.min(130, Math.max(70, (loadedImg.width * 25.4) / 150));
+            const pdfH = (loadedImg.height / loadedImg.width) * pdfW;
+
+            if (currentY + pdfH > 275) {
+              doc.addPage();
+              currentY = 20;
+            }
+
+            doc.setFontSize(8);
+            doc.setTextColor(5, 150, 105);
+            doc.text(
+              `Pratinjau Gambar Lampiran Soal No. ${idx + 1} (${ans.fileName}):`,
+              14,
+              currentY + 2
+            );
+            currentY += 4;
+
+            doc.addImage(
+              loadedImg.dataUrl,
+              loadedImg.format,
+              14,
+              currentY,
+              pdfW,
+              pdfH
+            );
+            currentY += pdfH + 6;
+          }
+        } else {
+          currentY += 2;
+        }
+      }
 
       // Footer
       const pageCount = doc.getNumberOfPages();

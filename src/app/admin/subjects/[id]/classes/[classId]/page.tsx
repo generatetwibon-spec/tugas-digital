@@ -29,6 +29,7 @@ import {
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { loadImageAsDataUrl } from "@/lib/pdf-helpers";
 
 interface StudentRow {
   id: string;
@@ -546,19 +547,94 @@ function ClassHubContent() {
       doc.line(14, currentY, 196, currentY);
       currentY += 6;
 
-      const answerRows = data.questions.map((q: any, idx: number) => {
-        const fileInfo = q.answer?.fileName ? `\n[FILE TERLAMPIR]: ${q.answer.fileName} (${q.answer.fileUrl})` : "";
-        return [
-          `Soal No. ${idx + 1} (${q.points} Poin)\n${q.text}\n\n[JAWABAN]:\n${q.answer?.answer || "(Tidak ada teks jawaban)"}${fileInfo}`,
-        ];
-      });
+      for (let idx = 0; idx < data.questions.length; idx++) {
+        const q = data.questions[idx];
 
-      autoTable(doc, {
-        body: answerRows,
-        startY: currentY,
-        theme: "grid",
-        styles: { fontSize: 9, cellPadding: 4, textColor: [30, 30, 30], overflow: "linebreak" },
-      });
+        if (currentY > 230) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        const isImg =
+          q.answer?.fileUrl &&
+          /\.(png|jpe?g|webp)$/i.test(q.answer.fileUrl.split("?")[0]);
+
+        const fileNote = q.answer?.fileName
+          ? isImg
+            ? `\n\n[FILE LAMPIRAN TERVERIFIKASI]: ${q.answer.fileName} (Gambar dicetak di bawah)`
+            : `\n\n[FILE LAMPIRAN]: ${q.answer.fileName}\nTautan: ${q.answer.fileUrl}`
+          : "";
+
+        const cellText = `Soal No. ${idx + 1} (${q.points} Poin)\n${q.text}\n\n[JAWABAN]:\n${
+          q.answer?.answer || "(Tidak ada teks jawaban)"
+        }${fileNote}`;
+
+        autoTable(doc, {
+          body: [[cellText]],
+          startY: currentY,
+          theme: "grid",
+          styles: {
+            fontSize: 9,
+            cellPadding: 4,
+            textColor: [30, 30, 30],
+            overflow: "linebreak",
+          },
+          headStyles: {
+            fillColor: [240, 245, 240],
+          },
+        });
+
+        currentY = (doc as any).lastAutoTable.finalY + 3;
+
+        // Cetak gambar jika ada
+        if (isImg && q.answer?.fileUrl) {
+          const loadedImg = await loadImageAsDataUrl(q.answer.fileUrl);
+          if (loadedImg) {
+            const pdfW = Math.min(130, Math.max(70, (loadedImg.width * 25.4) / 150));
+            const pdfH = (loadedImg.height / loadedImg.width) * pdfW;
+
+            if (currentY + pdfH > 275) {
+              doc.addPage();
+              currentY = 20;
+            }
+
+            doc.setFontSize(8);
+            doc.setTextColor(5, 150, 105);
+            doc.text(
+              `Pratinjau Gambar Lampiran Soal No. ${idx + 1} (${q.answer.fileName}):`,
+              14,
+              currentY + 2
+            );
+            currentY += 4;
+
+            doc.addImage(
+              loadedImg.dataUrl,
+              loadedImg.format,
+              14,
+              currentY,
+              pdfW,
+              pdfH
+            );
+            currentY += pdfH + 6;
+          }
+        } else {
+          currentY += 2;
+        }
+      }
+
+      // Footer
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `Dokumen resmi Sistem Ujian Digital • Halaman ${i} dari ${pageCount}`,
+          105,
+          290,
+          { align: "center" }
+        );
+      }
 
       doc.save(`Jawaban_${data.studentNim}_${data.studentName.replace(/\s+/g, "_")}.pdf`);
       toast.success("Lembar jawaban PDF berhasil diunduh");

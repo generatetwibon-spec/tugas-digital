@@ -43,10 +43,6 @@ export async function GET(
       return errorResponse('Sesi ujian tidak ditemukan', 404);
     }
 
-    if (session.submittedAt) {
-      return errorResponse('Ujian sudah dikumpulkan', 400);
-    }
-
     const questionsWithAnswers = session.exam.questions.map((question) => {
       const existingAnswer = session.answers.find(
         (a) => a.questionId === question.id
@@ -71,6 +67,7 @@ export async function GET(
       durationMinutes: session.exam.durationMinutes,
       minWords: session.exam.minWords,
       startedAt: session.startedAt,
+      submittedAt: session.submittedAt ? session.submittedAt.toISOString() : null,
       studentName: session.studentName,
       studentNim: session.studentNim,
       questions: questionsWithAnswers,

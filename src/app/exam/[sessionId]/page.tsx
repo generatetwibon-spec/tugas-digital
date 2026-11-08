@@ -597,6 +597,27 @@ function ExamSessionContent() {
                 rows={10}
                 value={currentAnswer}
                 onChange={(e) => handleAnswerChange(e.target.value)}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  toast.error(
+                    "Maaf ya! Halaman ujian ini TIDAK BISA PASTE. Ayo ketik manual sendiri, semangat ya ngetiknya! ✍️🔥",
+                    { id: "security-toast", duration: 4000 }
+                  );
+                }}
+                onCopy={(e) => {
+                  e.preventDefault();
+                  toast.warning(
+                    "Eits, dilarang copy teks ya! Kerjakan secara mandiri 😉✍️",
+                    { id: "security-toast", duration: 3500 }
+                  );
+                }}
+                onCut={(e) => {
+                  e.preventDefault();
+                  toast.warning(
+                    "Fitur cut dinonaktifkan di sistem ujian ini ya! Jawabanmu aman kok 😉",
+                    { id: "security-toast" }
+                  );
+                }}
                 placeholder="Tuliskan jawaban lengkap Anda di sini... (Ketik secara mandiri, copy-paste dinonaktifkan demi integritas ujian)"
                 className="w-full p-4 rounded-xl border border-slate-300 text-slate-900 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent transition-all resize-y font-sans placeholder-slate-400"
                 spellCheck={false}

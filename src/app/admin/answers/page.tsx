@@ -82,9 +82,10 @@ export default function AnswersReviewPage() {
         const res = await fetch("/api/admin/classes");
         if (res.ok) {
           const data = await res.json();
-          setClasses(data);
-          if (data.length > 0) {
-            setSelectedClassId(data[0].id);
+          const list = Array.isArray(data) ? data : [];
+          setClasses(list);
+          if (list.length > 0) {
+            setSelectedClassId(list[0].id);
           }
         }
       } catch {
@@ -107,9 +108,10 @@ export default function AnswersReviewPage() {
         const res = await fetch(`/api/admin/exams?classId=${selectedClassId}`);
         if (res.ok) {
           const data = await res.json();
-          setExams(data);
-          if (data.length > 0) {
-            setSelectedExamId(data[0].id);
+          const list = Array.isArray(data) ? data : [];
+          setExams(list);
+          if (list.length > 0) {
+            setSelectedExamId(list[0].id);
           } else {
             setSelectedExamId("");
             setSessions([]);
@@ -134,7 +136,7 @@ export default function AnswersReviewPage() {
       const res = await fetch(`/api/admin/answers?examId=${selectedExamId}`);
       if (!res.ok) throw new Error("Gagal mengambil jawaban");
       const data = await res.json();
-      setSessions(data);
+      setSessions(Array.isArray(data) ? data : []);
     } catch {
       toast.error("Gagal memuat jawaban mahasiswa");
     } finally {

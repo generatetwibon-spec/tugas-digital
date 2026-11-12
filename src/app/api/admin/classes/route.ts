@@ -4,7 +4,9 @@ import { z } from 'zod';
 
 const createClassSchema = z.object({
   name: z.string().min(1, 'Nama kelas wajib diisi'),
-  subjectId: z.string().min(1, 'ID mata pelajaran wajib diisi'),
+  level: z.string().optional(),
+  description: z.string().optional(),
+  subjectId: z.string().optional(),
 });
 
 export async function GET(request: Request) {
@@ -15,19 +17,30 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const subjectId = searchParams.get('subjectId');
 
-    if (!subjectId) {
-      return errorResponse('Parameter subjectId wajib diisi', 400);
+    const whereClause: any = {};
+    if (subjectId) {
+      whereClause.subjectId = subjectId;
     }
 
     const classes = await prisma.class.findMany({
-      where: { subjectId },
+      where: whereClause,
       include: {
         subject: true,
+        exams: {
+          select: {
+            id: true,
+            title: true,
+            subjectName: true,
+            isActive: true,
+            durationMinutes: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
         _count: {
           select: { exams: true, students: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { name: 'asc' },
     });
 
     return successResponse(classes);
@@ -49,26 +62,25 @@ export async function POST(request: Request) {
       return errorResponse(validation.error.issues[0]?.message || 'Input tidak valid', 400);
     }
 
-    const { name, subjectId } = validation.data;
-
-    const subject = await prisma.subject.findUnique({ where: { id: subjectId } });
-    if (!subject) {
-      return errorResponse('Mata pelajaran tidak ditemukan', 404);
-    }
+    const { name, level, description, subjectId } = validation.data;
 
     const existingClass = await prisma.class.findFirst({
       where: {
-        name: { equals: name, mode: 'insensitive' },
-        subjectId,
+        name: { equals: name.trim(), mode: 'insensitive' },
       },
     });
 
     if (existingClass) {
-      return errorResponse('Kelas dengan nama ini sudah ada di mata pelajaran ini', 400);
+      return errorResponse(`Kelas dengan nama "${name.trim()}" sudah terdaftar`, 400);
     }
 
     const newClass = await prisma.class.create({
-      data: { name, subjectId },
+      data: {
+        name: name.trim(),
+        level: level?.trim() || null,
+        description: description?.trim() || null,
+        subjectId: subjectId || null,
+      },
       include: {
         subject: true,
         _count: {

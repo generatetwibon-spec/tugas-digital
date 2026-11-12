@@ -13,6 +13,11 @@ export async function GET(
       include: {
         exam: {
           include: {
+            class: {
+              include: {
+                subject: true,
+              },
+            },
             questions: {
               orderBy: { order: 'asc' },
               select: {
@@ -64,6 +69,8 @@ export async function GET(
 
     return successResponse({
       examTitle: session.exam.title,
+      subjectName: session.exam.subjectName || session.exam.class?.subject?.name || "Mata Kuliah Umum",
+      className: session.exam.class?.name || "Kelas",
       durationMinutes: session.exam.durationMinutes,
       minWords: session.exam.minWords,
       startedAt: session.startedAt,

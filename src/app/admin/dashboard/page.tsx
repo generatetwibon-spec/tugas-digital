@@ -93,11 +93,11 @@ function DashboardContent() {
 
         <div className="flex items-center gap-2 self-start md:self-auto">
           <Link
-            href="/admin/subjects"
+            href="/admin/classes"
             className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white text-emerald-900 font-bold text-xs sm:text-sm shadow-xs hover:bg-emerald-50 transition-colors"
           >
             <Plus className="w-4 h-4 text-emerald-700" />
-            <span>Kelola Penugasan</span>
+            <span>Kelola Kelas & Penugasan</span>
           </Link>
         </div>
       </div>
@@ -165,7 +165,7 @@ function DashboardContent() {
               <span>Penugasan & Ujian yang Sedang Aktif</span>
             </h2>
             <Link
-              href="/admin/subjects"
+              href="/admin/classes"
               className="text-xs font-semibold text-emerald-700 hover:underline"
             >
               Lihat Semua
@@ -193,7 +193,7 @@ function DashboardContent() {
                   </div>
 
                   <Link
-                    href={`/admin/subjects/${e.subjectId}/classes/${e.classId}`}
+                    href={`/admin/classes/${e.classId}`}
                     className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-900"
                   >
                     <span>Buka</span>

@@ -17,7 +17,7 @@ import {
 
 const navLinks = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/subjects", label: "Penugasan & Mapel", icon: BookOpen },
+  { href: "/admin/classes", label: "Kelas & Penugasan", icon: BookOpen },
   { href: "/admin/answers", label: "Jawaban Mahasiswa", icon: FileText },
   { href: "/admin/settings", label: "Pengaturan & Tampilan", icon: Settings },
 ];

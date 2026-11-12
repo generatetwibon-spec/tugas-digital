@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 const updateExamSchema = z.object({
   title: z.string().min(1, 'Judul ujian wajib diisi').optional(),
+  subjectName: z.string().optional(),
   durationMinutes: z.number().int().min(1, 'Durasi minimal 1 menit').optional(),
   minWords: z.number().int().min(0, 'Minimal kata tidak boleh negatif').optional(),
   isActive: z.boolean().optional(),
@@ -65,12 +66,13 @@ export async function PUT(
       return errorResponse('Ujian tidak ditemukan', 404);
     }
 
-    const { title, durationMinutes, minWords, isActive } = validation.data;
+    const { title, subjectName, durationMinutes, minWords, isActive } = validation.data;
 
     const exam = await prisma.exam.update({
       where: { id },
       data: {
-        ...(title !== undefined && { title }),
+        ...(title !== undefined && { title: title.trim() }),
+        ...(subjectName !== undefined && { subjectName: subjectName.trim() || null }),
         ...(durationMinutes !== undefined && { durationMinutes }),
         ...(minWords !== undefined && { minWords }),
         ...(isActive !== undefined && { isActive }),

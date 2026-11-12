@@ -27,15 +27,18 @@ model Subject {
 }
 
 model Class {
-  id        String    @id @default(cuid())
-  name      String    // Contoh: "5A", "5B", "TI-3A"
-  subjectId String
-  subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  createdAt DateTime  @default(now())
-  students  Student[]
-  exams     Exam[]
+  id          String    @id @default(cuid())
+  name        String    // Contoh: "PAI 5A", "TBI 5", "PAI 5B"
+  level       String?   // Contoh: "Semester 5", "Pai 5 a dan TBI 5"
+  description String?
+  subjectId   String?   // Opsional untuk kompatibilitas data lama
+  subject     Subject?  @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  students    Student[]
+  exams       Exam[]
 
-  @@unique([subjectId, name])
+  @@index([name])
 }
 
 model Student {
@@ -53,6 +56,7 @@ model Student {
 model Exam {
   id              String        @id @default(cuid())
   title           String        // Contoh: "UTS", "Tugas 1", "Tugas Mandiri 2"
+  subjectName     String?       // Contoh: "Manajemen Lembaga Pendidikan Islam (MLPI)"
   classId         String
   class           Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
   durationMinutes Int           @default(90)

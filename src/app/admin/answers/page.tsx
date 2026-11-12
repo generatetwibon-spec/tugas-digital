@@ -22,20 +22,16 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { loadImageAsDataUrl } from "@/lib/pdf-helpers";
 
-interface SubjectOption {
-  id: string;
-  name: string;
-}
-
 interface ClassOption {
   id: string;
   name: string;
-  subjectId: string;
+  level?: string | null;
 }
 
 interface ExamOption {
   id: string;
   title: string;
+  subjectName?: string | null;
   classId: string;
 }
 
@@ -64,12 +60,10 @@ interface StudentSession {
 }
 
 export default function AnswersReviewPage() {
-  // Cascading filters
-  const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+  // Filters: Kelas -> Mata Kuliah & Ujian
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [exams, setExams] = useState<ExamOption[]>([]);
 
-  const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedExamId, setSelectedExamId] = useState("");
 
@@ -81,55 +75,26 @@ export default function AnswersReviewPage() {
   const [activeSession, setActiveSession] = useState<StudentSession | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  // Initial load: subjects
+  // Initial load: classes
   useEffect(() => {
-    async function loadSubjects() {
-      try {
-        const res = await fetch("/api/admin/subjects");
-        if (res.ok) {
-          const data = await res.json();
-          setSubjects(data);
-          if (data.length > 0) {
-            setSelectedSubjectId(data[0].id);
-          }
-        }
-      } catch {
-        toast.error("Gagal memuat mata kuliah");
-      }
-    }
-    loadSubjects();
-  }, []);
-
-  // When subject changes: load classes
-  useEffect(() => {
-    if (!selectedSubjectId) {
-      setClasses([]);
-      setSelectedClassId("");
-      return;
-    }
-
     async function loadClasses() {
       try {
-        const res = await fetch(`/api/admin/classes?subjectId=${selectedSubjectId}`);
+        const res = await fetch("/api/admin/classes");
         if (res.ok) {
           const data = await res.json();
           setClasses(data);
           if (data.length > 0) {
             setSelectedClassId(data[0].id);
-          } else {
-            setSelectedClassId("");
-            setExams([]);
-            setSelectedExamId("");
           }
         }
       } catch {
-        toast.error("Gagal memuat kelas");
+        toast.error("Gagal memuat daftar kelas");
       }
     }
     loadClasses();
-  }, [selectedSubjectId]);
+  }, []);
 
-  // When class changes: load exams
+  // When class changes: load exams for this class
   useEffect(() => {
     if (!selectedClassId) {
       setExams([]);
@@ -151,7 +116,7 @@ export default function AnswersReviewPage() {
           }
         }
       } catch {
-        toast.error("Gagal memuat ujian");
+        toast.error("Gagal memuat penugasan");
       }
     }
     loadExams();
@@ -194,9 +159,10 @@ export default function AnswersReviewPage() {
         format: "a4",
       });
 
-      const currentSubject = subjects.find((s) => s.id === selectedSubjectId)?.name || "-";
       const currentClass = classes.find((c) => c.id === selectedClassId)?.name || "-";
-      const currentExam = exams.find((e) => e.id === selectedExamId)?.title || "Ujian Tengah Semester";
+      const currentExamObj = exams.find((e) => e.id === selectedExamId);
+      const currentSubject = currentExamObj?.subjectName || "Mata Kuliah";
+      const currentExam = currentExamObj?.title || "Ujian";
 
       // Header Banner
       doc.setFillColor(5, 150, 105); // Emerald-600
@@ -368,8 +334,9 @@ export default function AnswersReviewPage() {
       return;
     }
 
-    const currentSubject = subjects.find((s) => s.id === selectedSubjectId)?.name || "";
     const currentClass = classes.find((c) => c.id === selectedClassId)?.name || "";
+    const currentExamObj = exams.find((e) => e.id === selectedExamId);
+    const currentSubject = currentExamObj?.subjectName || "Mata Kuliah";
 
     const headers = ["Nama Mahasiswa", "NIM", "Mata Kuliah", "Kelas", "Waktu Mulai", "Waktu Selesai", "Status", "Jumlah Soal Dijawab", "Total Kata"];
     const rows = sessions.map((s) => {
@@ -459,46 +426,28 @@ export default function AnswersReviewPage() {
       {/* Filter Card */}
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
         <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
-          <Filter className="w-4 h-4 text-emerald-700" />
+          <Filter className="w-4 h-4 text-emerald-800" />
           <span>Pilih Sesi Ujian</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Select Subject */}
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              Mata Kuliah
-            </label>
-            <select
-              value={selectedSubjectId}
-              onChange={(e) => setSelectedSubjectId(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-white"
-            >
-              {subjects.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Select Class */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              Kelas
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              1. Pilih Kelas
             </label>
             <select
               value={selectedClassId}
               onChange={(e) => setSelectedClassId(e.target.value)}
               disabled={classes.length === 0}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-white disabled:bg-slate-100"
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white disabled:bg-slate-100"
             >
               {classes.length === 0 ? (
-                <option value="">Belum ada kelas</option>
+                <option value="">Belum ada kelas terdaftar</option>
               ) : (
                 classes.map((c) => (
                   <option key={c.id} value={c.id}>
-                    Kelas {c.name}
+                    Kelas {c.name} {c.level ? `(${c.level})` : ""}
                   </option>
                 ))
               )}
@@ -507,21 +456,21 @@ export default function AnswersReviewPage() {
 
           {/* Select Exam */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              Judul Ujian
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              2. Pilih Mata Kuliah & Ujian
             </label>
             <select
               value={selectedExamId}
               onChange={(e) => setSelectedExamId(e.target.value)}
               disabled={exams.length === 0}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 bg-white disabled:bg-slate-100"
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white disabled:bg-slate-100"
             >
               {exams.length === 0 ? (
-                <option value="">Belum ada ujian dibuat</option>
+                <option value="">Belum ada penugasan di kelas ini</option>
               ) : (
                 exams.map((e) => (
                   <option key={e.id} value={e.id}>
-                    {e.title}
+                    {e.subjectName ? `${e.subjectName} — ` : ""}{e.title}
                   </option>
                 ))
               )}

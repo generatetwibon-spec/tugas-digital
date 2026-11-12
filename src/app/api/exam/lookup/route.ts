@@ -32,6 +32,7 @@ export async function GET(request: Request) {
               select: {
                 id: true,
                 title: true,
+                subjectName: true,
                 durationMinutes: true,
                 minWords: true,
                 _count: {
@@ -100,8 +101,8 @@ export async function GET(request: Request) {
           totalQuestions: exam._count.questions,
           className: s.class.name,
           classId: s.class.id,
-          subjectName: s.class.subject.name,
-          subjectLevel: s.class.subject.level,
+          subjectName: exam.subjectName || s.class.subject?.name || "Mata Kuliah Umum",
+          subjectLevel: s.class.level || s.class.subject?.level || null,
           status,
           sessionId: session?.id,
         });

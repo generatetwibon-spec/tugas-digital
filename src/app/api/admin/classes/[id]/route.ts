@@ -4,6 +4,8 @@ import { z } from 'zod';
 
 const updateClassSchema = z.object({
   name: z.string().min(1, 'Nama kelas wajib diisi'),
+  level: z.string().optional(),
+  description: z.string().optional(),
 });
 
 export async function GET(
@@ -21,7 +23,21 @@ export async function GET(
       include: {
         subject: true,
         exams: {
+          include: {
+            questions: {
+              orderBy: { order: 'asc' },
+            },
+            _count: {
+              select: { questions: true, sessions: true },
+            },
+          },
           orderBy: { createdAt: 'desc' },
+        },
+        students: {
+          orderBy: { nim: 'asc' },
+        },
+        _count: {
+          select: { exams: true, students: true },
         },
       },
     });
@@ -58,27 +74,33 @@ export async function PUT(
       return errorResponse('Kelas tidak ditemukan', 404);
     }
 
-    const { name } = validation.data;
+    const { name, level, description } = validation.data;
 
     const duplicate = await prisma.class.findFirst({
       where: {
-        name: { equals: name, mode: 'insensitive' },
-        subjectId: existing.subjectId,
+        name: { equals: name.trim(), mode: 'insensitive' },
         id: { not: id },
       },
     });
 
     if (duplicate) {
-      return errorResponse('Kelas dengan nama ini sudah ada di mata pelajaran ini', 400);
+      return errorResponse(`Kelas dengan nama "${name.trim()}" sudah ada`, 400);
     }
 
     const updatedClass = await prisma.class.update({
       where: { id },
-      data: { name },
+      data: {
+        name: name.trim(),
+        level: level !== undefined ? (level?.trim() || null) : existing.level,
+        description: description !== undefined ? (description?.trim() || null) : existing.description,
+      },
       include: {
         subject: true,
         exams: {
           orderBy: { createdAt: 'desc' },
+        },
+        _count: {
+          select: { exams: true, students: true },
         },
       },
     });

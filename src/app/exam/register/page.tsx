@@ -373,12 +373,12 @@ function ExamRegisterContent() {
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold text-slate-900">
-                                    {exam.examTitle}
+                                <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wide">
+                                    {exam.subjectName}
                                   </span>
                                   {exam.status === "selesai" && (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
                                       Sudah Selesai
                                     </span>
                                   )}
@@ -388,12 +388,15 @@ function ExamRegisterContent() {
                                     </span>
                                   )}
                                 </div>
+                                <span className="text-xs font-bold text-slate-900 block">
+                                  {exam.examTitle}
+                                </span>
                                 <p className="text-[11px] text-slate-500 mt-0.5">
-                                  {exam.subjectName} &bull; Kelas {exam.className} &bull; {exam.totalQuestions} Soal
+                                  Kelas {exam.className} &bull; {exam.totalQuestions} Soal
                                 </p>
                               </div>
 
-                              <div className="text-right text-[11px] text-slate-500">
+                              <div className="text-right text-[11px] text-slate-500 whitespace-nowrap">
                                 <span className="font-semibold text-slate-700">
                                   {exam.durationMinutes} Menit
                                 </span>

@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 const createExamSchema = z.object({
   title: z.string().min(1, 'Judul ujian wajib diisi'),
+  subjectName: z.string().optional(),
   classId: z.string().min(1, 'ID kelas wajib diisi'),
   durationMinutes: z.number().int().min(1, 'Durasi minimal 1 menit'),
   minWords: z.number().int().min(0, 'Minimal kata tidak boleh negatif').default(0),
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
       return errorResponse(validation.error.issues[0]?.message || 'Input tidak valid', 400);
     }
 
-    const { title, classId, durationMinutes, minWords } = validation.data;
+    const { title, subjectName, classId, durationMinutes, minWords } = validation.data;
 
     const classData = await prisma.class.findUnique({ where: { id: classId } });
     if (!classData) {
@@ -61,7 +62,13 @@ export async function POST(request: Request) {
     }
 
     const exam = await prisma.exam.create({
-      data: { title, classId, durationMinutes, minWords },
+      data: {
+        title: title.trim(),
+        subjectName: subjectName?.trim() || null,
+        classId,
+        durationMinutes,
+        minWords,
+      },
       include: {
         _count: {
           select: { questions: true, sessions: true },

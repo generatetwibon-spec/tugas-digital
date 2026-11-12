@@ -84,7 +84,8 @@ interface ClassMeta {
 
 function ClassHubContent() {
   const params = useParams();
-  const classId = params.id as string;
+  const classId = (params?.id as string) || "";
+  const router = useRouter();
 
   // Active Tab: 'students' | 'assignments'
   const [activeTab, setActiveTab] = useState<"students" | "assignments">("students");
@@ -133,6 +134,8 @@ function ClassHubContent() {
 
   // Fetch Class Metadata, Students, and Exams in ONE parallel sweep
   const loadClassData = useCallback(async (isInitial = false) => {
+    if (!classId) return;
+
     try {
       if (isInitial) setLoading(true);
 
@@ -151,30 +154,49 @@ function ClassHubContent() {
           description: classData.description || null,
           subject: classData.subject || null,
         });
+      } else if (resClass.status === 401) {
+        router.push("/admin/login");
+        return;
       }
 
       if (resStudents.ok) {
         const studentsData = await resStudents.json();
-        setStudents(studentsData);
+        const studentList = Array.isArray(studentsData)
+          ? studentsData
+          : Array.isArray(studentsData.students)
+          ? studentsData.students
+          : [];
+        setStudents(studentList);
+      } else {
+        setStudents([]);
       }
 
       if (resExams.ok) {
         const examsData = await resExams.json();
-        setExams(examsData);
-        if (examsData.length > 0 && !activeExamId) {
-          setActiveExamId(examsData[0].id);
+        const examList = Array.isArray(examsData)
+          ? examsData
+          : Array.isArray(examsData.exams)
+          ? examsData.exams
+          : [];
+        setExams(examList);
+        if (examList.length > 0) {
+          setActiveExamId((prev) => prev || examList[0].id);
         }
+      } else {
+        setExams([]);
       }
     } catch {
       toast.error("Gagal memuat data kelas");
     } finally {
       if (isInitial) setLoading(false);
     }
-  }, [classId, activeExamId]);
+  }, [classId, router]);
 
   useEffect(() => {
-    loadClassData(true);
-  }, [loadClassData]);
+    if (classId) {
+      loadClassData(true);
+    }
+  }, [classId, loadClassData]);
 
   // Handle Add Student
   const handleSaveStudent = async (e: React.FormEvent) => {

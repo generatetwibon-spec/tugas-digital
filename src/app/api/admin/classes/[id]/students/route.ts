@@ -2,10 +2,16 @@ import { requireAdmin, successResponse, errorResponse } from '@/lib/utils';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
+const studentItemSchema = z.object({
+  nim: z.string().min(1, 'NIM wajib diisi'),
+  name: z.string().min(1, 'Nama wajib diisi'),
+});
+
 const addStudentSchema = z.object({
   nim: z.string().optional(),
   name: z.string().optional(),
   bulkText: z.string().optional(), // Mendukung paste massal dari Excel: "2101001, Ahmad Fauzi"
+  students: z.array(studentItemSchema).optional(), // Mendukung payload array dari frontend
 });
 
 const editStudentSchema = z.object({
@@ -34,6 +40,7 @@ export async function GET(
           select: {
             id: true,
             title: true,
+            subjectName: true,
             isActive: true,
           },
         },
@@ -76,6 +83,7 @@ export async function GET(
           return {
             examId: exam.id,
             examTitle: exam.title,
+            subjectName: exam.subjectName || null,
             status: !session
               ? 'belum'
               : session.submittedAt
@@ -115,7 +123,34 @@ export async function POST(
       return errorResponse(validation.error.issues[0]?.message || 'Input tidak valid', 400);
     }
 
-    const { nim, name, bulkText } = validation.data;
+    const { nim, name, bulkText, students } = validation.data;
+
+    // Jika input via array students (single / batch dari UI)
+    if (students && students.length > 0) {
+      let addedCount = 0;
+      for (const s of students) {
+        await prisma.student.upsert({
+          where: {
+            classId_nim: {
+              classId,
+              nim: s.nim.trim(),
+            },
+          },
+          update: { name: s.name.trim() },
+          create: {
+            classId,
+            nim: s.nim.trim(),
+            name: s.name.trim(),
+          },
+        });
+        addedCount++;
+      }
+
+      return successResponse({
+        message: `Berhasil menyimpan ${addedCount} mahasiswa`,
+        count: addedCount,
+      });
+    }
 
     // Jika input massal (bulk text)
     if (bulkText && bulkText.trim()) {

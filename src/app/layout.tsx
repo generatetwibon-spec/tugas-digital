@@ -1,10 +1,13 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Sistem Ujian Digital",
   description: "Sistem Ujian Tengah Semester Online",
+};
+
+export const viewport: Viewport = {
   colorScheme: "light",
 };
 

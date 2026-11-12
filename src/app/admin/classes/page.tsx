@@ -68,7 +68,7 @@ export default function ClassesListPage() {
       const res = await fetch("/api/admin/classes");
       if (!res.ok) throw new Error("Gagal mengambil data kelas");
       const data = await res.json();
-      setClasses(data);
+      setClasses(Array.isArray(data) ? data : []);
     } catch {
       toast.error("Gagal memuat daftar kelas");
     } finally {

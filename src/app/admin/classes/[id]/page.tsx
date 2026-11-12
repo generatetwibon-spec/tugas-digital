@@ -26,6 +26,7 @@ import {
   Check,
   ClipboardList,
   BookOpen,
+  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
@@ -36,6 +37,8 @@ interface StudentRow {
   id: string;
   nim: string;
   name: string;
+  isAllowed: boolean;
+  allowExamReason: string | null;
   createdAt: string;
   examsStatus: {
     examId: string;
@@ -130,7 +133,17 @@ function ClassHubContent() {
 
   // Selected Exam for viewing questions inside Tab 2
   const [activeExamId, setActiveExamId] = useState<string | null>(null);
+  const [viewingQuestionsExamId, setViewingQuestionsExamId] = useState<string | null>(null);
   const [downloadingSessionId, setDownloadingSessionId] = useState<string | null>(null);
+
+  // Student Filter & Search
+  const [studentFilter, setStudentFilter] = useState<"all" | "allowed" | "disallowed">("all");
+  const [studentSearch, setStudentSearch] = useState("");
+
+  // Subject Management
+  const [customSubjects, setCustomSubjects] = useState<string[]>([]);
+  const [isAddSubjectModal, setIsAddSubjectModal] = useState(false);
+  const [newSubjectInput, setNewSubjectInput] = useState("");
 
   // Fetch Class Metadata, Students, and Exams in ONE parallel sweep
   const loadClassData = useCallback(async (isInitial = false) => {
@@ -346,6 +359,63 @@ function ClassHubContent() {
     } catch (err: any) {
       toast.error(err.message || "Gagal mereset sesi ujian");
     }
+  };
+
+  // Toggle Student Exam Eligibility (Kehadiran / Presensi)
+  const handleToggleStudentEligibility = async (student: StudentRow) => {
+    const nextAllowed = !student.isAllowed;
+    // Optimistic update
+    setStudents((prev) =>
+      prev.map((s) => (s.id === student.id ? { ...s, isAllowed: nextAllowed } : s))
+    );
+
+    try {
+      const res = await fetch(`/api/admin/classes/${classId}/students`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId: student.id,
+          isAllowed: nextAllowed,
+          reason: nextAllowed ? null : "Kehadiran kurang dari batas minimum",
+        }),
+      });
+
+      if (!res.ok) throw new Error("Gagal mengubah izin ujian");
+      toast.success(
+        nextAllowed
+          ? `Mahasiswa ${student.name} sekarang DIIZINKAN mengikuti ujian`
+          : `Izin ujian mahasiswa ${student.name} DITANGGUHKAN (kehadiran kurang)`
+      );
+    } catch {
+      setStudents((prev) =>
+        prev.map((s) => (s.id === student.id ? { ...s, isAllowed: student.isAllowed } : s))
+      );
+      toast.error("Gagal mengubah izin ujian");
+    }
+  };
+
+  // Add Subject to Class
+  const handleAddSubject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubjectInput.trim()) {
+      toast.error("Nama mata kuliah wajib diisi");
+      return;
+    }
+    const subjectName = newSubjectInput.trim();
+    if (!customSubjects.includes(subjectName)) {
+      setCustomSubjects((prev) => [...prev, subjectName]);
+    }
+    setNewSubjectInput("");
+    setIsAddSubjectModal(false);
+    toast.success(`Mata kuliah "${subjectName}" siap ditambahkan tugas.`);
+
+    // Langsung buka modal buat tugas pertama untuk matkul ini
+    setEditingExam(null);
+    setExamSubjectName(subjectName);
+    setExamTitle("");
+    setDurationMinutes(90);
+    setMinWords(0);
+    setIsExamModalOpen(true);
   };
 
   // Delete Exam / Assignment
@@ -734,6 +804,38 @@ function ClassHubContent() {
 
   const activeExam = exams.find((e) => e.id === activeExamId);
 
+  // Filter and stats for students
+  const allowedCount = students.filter((s) => s.isAllowed !== false).length;
+  const disallowedCount = students.filter((s) => s.isAllowed === false).length;
+
+  const filteredStudents = students.filter((s) => {
+    if (studentFilter === "allowed" && s.isAllowed === false) return false;
+    if (studentFilter === "disallowed" && s.isAllowed !== false) return false;
+    if (studentSearch.trim()) {
+      const q = studentSearch.toLowerCase();
+      return s.name.toLowerCase().includes(q) || s.nim.toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  // Extract all subjects in this class
+  const existingSubjectNames = Array.from(
+    new Set(exams.map((e) => e.subjectName?.trim()).filter(Boolean) as string[])
+  );
+  const allSubjectNames = Array.from(
+    new Set([...customSubjects, ...existingSubjectNames])
+  );
+  const hasExamsWithoutSubject = exams.some((e) => !e.subjectName?.trim());
+  if (hasExamsWithoutSubject && !allSubjectNames.includes("Mata Kuliah Utama")) {
+    allSubjectNames.push("Mata Kuliah Utama");
+  }
+  if (allSubjectNames.length === 0 && exams.length === 0) {
+    allSubjectNames.push("Mata Kuliah Utama");
+  }
+
+  // Active exam for question editing
+  const questionStudioExam = exams.find((e) => e.id === viewingQuestionsExamId);
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
@@ -761,14 +863,17 @@ function ClassHubContent() {
             )}
           </div>
           <p className="text-xs sm:text-sm text-slate-500">
-            Total {students.length} Mahasiswa Terdaftar &bull; {exams.length} Mata Kuliah / Penugasan
+            Total {students.length} Mahasiswa Terdaftar ({allowedCount} Boleh Ujian, {disallowedCount} Ditangguhkan) &bull; {exams.length} Penugasan
           </p>
         </div>
 
         {/* Tab Switcher Buttons */}
         <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 shrink-0">
           <button
-            onClick={() => setActiveTab("students")}
+            onClick={() => {
+              setActiveTab("students");
+              setViewingQuestionsExamId(null);
+            }}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer ${
               activeTab === "students"
                 ? "bg-white text-emerald-900 shadow-xs"
@@ -801,7 +906,7 @@ function ClassHubContent() {
                 Daftar Mahasiswa Kelas {classMeta?.name}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Mahasiswa yang terdaftar di kelas ini otomatis dapat mengakses seluruh ujian yang ditugaskan.
+                Kelola mahasiswa di kelas ini dan tentukan status izin mengikuti ujian (misal: jika kehadiran kurang).
               </p>
             </div>
 
@@ -817,17 +922,70 @@ function ClassHubContent() {
             </button>
           </div>
 
+          {/* Filter & Search Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-slate-50 border-b border-slate-200">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => setStudentFilter("all")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  studentFilter === "all"
+                    ? "bg-emerald-800 text-white"
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                Semua ({students.length})
+              </button>
+              <button
+                onClick={() => setStudentFilter("allowed")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  studentFilter === "allowed"
+                    ? "bg-emerald-800 text-white"
+                    : "bg-white text-emerald-800 border border-emerald-300 hover:bg-emerald-50"
+                }`}
+              >
+                ✓ Boleh Ujian ({allowedCount})
+              </button>
+              <button
+                onClick={() => setStudentFilter("disallowed")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                  studentFilter === "disallowed"
+                    ? "bg-rose-700 text-white"
+                    : "bg-white text-rose-700 border border-rose-300 hover:bg-rose-50"
+                }`}
+              >
+                ✕ Ditangguhkan ({disallowedCount})
+              </button>
+            </div>
+
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Cari NIM atau Nama..."
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                className="pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700 w-full sm:w-60"
+              />
+            </div>
+          </div>
+
           {loading ? (
             <div className="p-12 flex flex-col items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin text-emerald-800 mb-2" />
               <p className="text-xs text-slate-500">Memuat data mahasiswa...</p>
             </div>
-          ) : students.length === 0 ? (
+          ) : filteredStudents.length === 0 ? (
             <div className="p-12 text-center">
               <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-medium text-slate-700">Belum Ada Mahasiswa Terdaftar</p>
+              <p className="text-sm font-medium text-slate-700">
+                {students.length === 0
+                  ? "Belum Ada Mahasiswa Terdaftar"
+                  : "Tidak ada mahasiswa yang sesuai dengan filter pencarian"}
+              </p>
               <p className="text-xs text-slate-500 mt-0.5">
-                Klik tombol di atas untuk menambah mahasiswa satu per satu atau tempel (bulk paste) dari Excel.
+                {students.length === 0
+                  ? "Klik tombol di atas untuk menambah mahasiswa satu per satu atau tempel (bulk paste) dari Excel."
+                  : "Ubah kata kunci pencarian atau filter status di atas."}
               </p>
             </div>
           ) : (
@@ -838,12 +996,13 @@ function ClassHubContent() {
                     <th className="py-3.5 px-4 w-12 text-center">No</th>
                     <th className="py-3.5 px-4">NIM</th>
                     <th className="py-3.5 px-4">Nama Lengkap</th>
+                    <th className="py-3.5 px-4 text-center">Izin Ujian (Presensi)</th>
                     <th className="py-3.5 px-4">Status Mata Kuliah & Ujian</th>
                     <th className="py-3.5 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {students.map((student, idx) => (
+                  {filteredStudents.map((student, idx) => (
                     <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4 text-center font-mono text-slate-400 text-xs">
                         {idx + 1}
@@ -854,8 +1013,42 @@ function ClassHubContent() {
                       <td className="py-3.5 px-4 font-medium text-slate-800">
                         {student.name}
                       </td>
+                      {/* Interactive Exam Eligibility Toggle */}
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStudentEligibility(student)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer border shadow-2xs ${
+                            student.isAllowed !== false
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300"
+                              : "bg-rose-50 text-rose-700 border-rose-300 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300"
+                          }`}
+                          title={
+                            student.isAllowed !== false
+                              ? "Klik untuk menangguhkan izin mahasiswa (misal: kehadiran kurang)"
+                              : "Klik untuk mengizinkan mahasiswa mengikuti ujian"
+                          }
+                        >
+                          {student.isAllowed !== false ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Boleh Ujian</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Ditangguhkan</span>
+                            </>
+                          )}
+                        </button>
+                        {student.isAllowed === false && (
+                          <span className="block text-[10px] text-rose-600 mt-0.5 italic">
+                            (Kehadiran kurang)
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3.5 px-4">
-                        {student.examsStatus.length === 0 ? (
+                        {!student.examsStatus || student.examsStatus.length === 0 ? (
                           <span className="text-xs text-slate-400 italic">
                             Belum ada penugasan di kelas ini
                           </span>
@@ -957,251 +1150,337 @@ function ClassHubContent() {
       {/* TAB 2: MATA KULIAH & UJIAN */}
       {activeTab === "assignments" && (
         <div className="space-y-6">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="font-bold text-slate-900 text-base">
-                Daftar Mata Kuliah & Paket Ujian (Kelas {classMeta?.name})
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Kelola mata kuliah yang diajarkan pada kelas ini beserta paket soal ujian masing-masing.
-              </p>
-            </div>
-
-            <button
-              onClick={() => {
-                setEditingExam(null);
-                setExamSubjectName("");
-                setExamTitle("");
-                setDurationMinutes(90);
-                setMinWords(0);
-                setIsExamModalOpen(true);
-              }}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Buat Mata Kuliah / Ujian Baru</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column: List of Exams */}
-            <div className="space-y-3">
-              <span className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
-                PILIH PAKET MATA KULIAH & UJIAN:
-              </span>
-
-              {exams.length === 0 ? (
-                <div className="bg-white p-8 rounded-xl border border-dashed border-slate-300 text-center">
-                  <BookOpen className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                  <p className="text-xs text-slate-500">Belum ada paket mata kuliah/ujian dibuat.</p>
-                </div>
-              ) : (
-                exams.map((exam) => {
-                  const isSelected = activeExamId === exam.id;
-                  return (
-                    <div
-                      key={exam.id}
-                      onClick={() => setActiveExamId(exam.id)}
-                      className={`p-4 rounded-xl border transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-white border-emerald-700 ring-2 ring-emerald-700/20 shadow-sm"
-                          : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50"
+          {/* JIKA SEDANG MEMBUKA KELOLA SOAL UJIAN TERTENTU (QUESTION STUDIO) */}
+          {questionStudioExam ? (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-6 animate-in fade-in duration-150">
+              {/* Top Bar Question Studio */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setViewingQuestionsExamId(null)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 mb-2 cursor-pointer transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Kembali ke Daftar Mata Kuliah</span>
+                  </button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {questionStudioExam.subjectName && (
+                      <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 uppercase tracking-wide">
+                        {questionStudioExam.subjectName}
+                      </span>
+                    )}
+                    <h3 className="text-xl font-bold text-slate-900">
+                      {questionStudioExam.title} &mdash; Soal ({questionStudioExam.questions.length})
+                    </h3>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        questionStudioExam.isActive
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-100 text-slate-600"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          {exam.subjectName && (
-                            <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 block truncate mb-1">
-                              {exam.subjectName}
+                      {questionStudioExam.isActive ? "Bisa Dikerjakan" : "Non-Aktif / Ditutup"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Total Poin: {questionStudioExam.questions.reduce((a, b) => a + b.points, 0)} Poin &bull; Durasi: {questionStudioExam.durationMinutes} Menit &bull; Min Kata: {questionStudioExam.minWords > 0 ? `${questionStudioExam.minWords} kata` : "Bebas"}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => handleOpenAddQuestion(questionStudioExam)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs cursor-pointer transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Tambah Butir Soal</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Questions List */}
+              {questionStudioExam.questions.length === 0 ? (
+                <div className="py-16 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-300">
+                  <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-sm font-bold text-slate-800">Belum Ada Butir Soal</p>
+                  <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
+                    Klik tombol "Tambah Butir Soal" di atas untuk menambahkan butir soal essay. Anda juga dapat mengaktifkan saklar upload file/diagram jika soal membutuhkan gambar jawaban.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {questionStudioExam.questions.map((q, idx) => (
+                    <div
+                      key={q.id}
+                      className="p-5 rounded-xl border border-slate-200 bg-white hover:border-emerald-600/40 shadow-2xs transition-all flex flex-col sm:flex-row sm:items-start justify-between gap-4"
+                    >
+                      <div className="space-y-2.5 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="w-6 h-6 rounded-md bg-emerald-800 text-white text-xs font-bold flex items-center justify-center">
+                            {idx + 1}
+                          </span>
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">
+                            Bobot: {q.points} Poin
+                          </span>
+                          {q.allowFileUpload ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+                              <Upload className="w-3 h-3 text-purple-600" />
+                              <span>Upload Diagram / File Diaktifkan</span>
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                              Teks Essay Murni
                             </span>
                           )}
-                          <h4 className="font-bold text-sm text-slate-900 truncate">
-                            {exam.title}
-                          </h4>
-                          <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                            <span>Durasi: {exam.durationMinutes} Menit</span>
-                            <span>&bull;</span>
-                            <span>{exam.questions.length} Butir Soal</span>
+                        </div>
+
+                        <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
+                          {q.text}
+                        </p>
+                      </div>
+
+                      {/* Action Controls */}
+                      <div className="flex items-center gap-1 shrink-0 self-end sm:self-start bg-slate-50 p-1 rounded-lg border border-slate-200">
+                        <button
+                          onClick={() => handleReorderQuestion(questionStudioExam, idx, "up")}
+                          disabled={idx === 0}
+                          className="p-1.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+                          title="Pindah ke Atas"
+                        >
+                          <ArrowUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleReorderQuestion(questionStudioExam, idx, "down")}
+                          disabled={idx === questionStudioExam.questions.length - 1}
+                          className="p-1.5 rounded text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+                          title="Pindah ke Bawah"
+                        >
+                          <ArrowDown className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleOpenEditQuestion(questionStudioExam, q)}
+                          className="p-1.5 rounded text-slate-400 hover:text-emerald-700 cursor-pointer ml-1"
+                          title="Edit Soal"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteQuestion(q.id)}
+                          className="p-1.5 rounded text-slate-400 hover:text-red-600 cursor-pointer"
+                          title="Hapus Soal"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* JIKA TAMPILAN UTAMA TAB 2: KARTU MATA KULIAH DENGAN PENUGASAN DI DALAMNYA */
+            <div className="space-y-6">
+              {/* Header Tab 2 */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="font-bold text-slate-900 text-base">
+                    Mata Kuliah & Penugasan (Kelas {classMeta?.name})
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Setiap mata kuliah memiliki kotak kartu tersendiri untuk mengelompokkan tugas, kuis, atau ujian.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      setNewSubjectInput("");
+                      setIsAddSubjectModal(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border border-emerald-700 text-emerald-800 hover:bg-emerald-50 text-xs font-bold shadow-2xs cursor-pointer transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Tambah Mata Kuliah</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setEditingExam(null);
+                      setExamSubjectName(allSubjectNames[0] || "");
+                      setExamTitle("");
+                      setDurationMinutes(90);
+                      setMinWords(0);
+                      setIsExamModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs cursor-pointer transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Buat Ujian Baru</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* LIST OF MATA KULIAH CARDS */}
+              <div className="space-y-6">
+                {allSubjectNames.map((subjectName) => {
+                  const subjectExams = exams.filter(
+                    (e) => (e.subjectName?.trim() || "Mata Kuliah Utama") === subjectName
+                  );
+
+                  return (
+                    <div
+                      key={subjectName}
+                      className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden"
+                    >
+                      {/* Subject Card Header */}
+                      <div className="bg-slate-50/80 px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                            <BookOpen className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-base font-bold text-slate-900">
+                                {subjectName}
+                              </h3>
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-slate-700 border border-slate-200 shadow-2xs">
+                                {subjectExams.length} Penugasan
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500">
+                              Mata kuliah pada Kelas {classMeta?.name}
+                            </p>
                           </div>
                         </div>
 
-                        {/* Switch Active Button */}
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleExamStatus(exam);
+                          onClick={() => {
+                            setEditingExam(null);
+                            setExamSubjectName(subjectName);
+                            setExamTitle("");
+                            setDurationMinutes(90);
+                            setMinWords(0);
+                            setIsExamModalOpen(true);
                           }}
-                          className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors cursor-pointer shrink-0 ${
-                            exam.isActive
-                              ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                          }`}
-                          title="Klik untuk membuka/menutup akses pengerjaan mahasiswa"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs cursor-pointer transition-colors self-start sm:self-auto"
                         >
-                          {exam.isActive ? "BUKA" : "TUTUP"}
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Tambah Tugas di Matkul Ini</span>
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 text-xs">
-                        <span className="text-slate-500 text-[11px]">
-                          Min Kata: {exam.minWords > 0 ? `${exam.minWords} kata` : "Bebas"}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingExam(exam);
-                              setExamSubjectName(exam.subjectName || "");
-                              setExamTitle(exam.title);
-                              setDurationMinutes(exam.durationMinutes);
-                              setMinWords(exam.minWords);
-                              setIsExamModalOpen(true);
-                            }}
-                            className="text-slate-600 hover:text-slate-900 text-xs font-semibold cursor-pointer"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteExam(exam);
-                            }}
-                            className="text-red-600 hover:text-red-800 text-xs font-semibold cursor-pointer"
-                          >
-                            Hapus
-                          </button>
-                        </div>
+                      {/* Subject Tasks / Exams Grid */}
+                      <div className="p-6">
+                        {subjectExams.length === 0 ? (
+                          <div className="p-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                            <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                            <p className="text-xs font-semibold text-slate-700">
+                              Belum Ada Tugas / Ujian di Mata Kuliah Ini
+                            </p>
+                            <p className="text-[11px] text-slate-400 mt-0.5 mb-3">
+                              Tambahkan tugas mandiri, kuis, UTS, atau UAS untuk mahasiswa kelas {classMeta?.name}.
+                            </p>
+                            <button
+                              onClick={() => {
+                                setEditingExam(null);
+                                setExamSubjectName(subjectName);
+                                setExamTitle("");
+                                setDurationMinutes(90);
+                                setMinWords(0);
+                                setIsExamModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>Buat Tugas Pertama Sekarang</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {subjectExams.map((exam) => (
+                              <div
+                                key={exam.id}
+                                className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between"
+                              >
+                                <div>
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <h4 className="font-bold text-sm text-slate-900 leading-snug">
+                                        {exam.title}
+                                      </h4>
+                                      <p className="text-xs text-slate-500 mt-1">
+                                        Durasi: {exam.durationMinutes} Menit &bull; {exam.questions.length} Butir Soal
+                                      </p>
+                                    </div>
+
+                                    {/* Active Toggle Switch Button */}
+                                    <button
+                                      onClick={() => handleToggleExamStatus(exam)}
+                                      className={`text-[10px] font-bold px-2.5 py-1 rounded-md transition-colors cursor-pointer shrink-0 border ${
+                                        exam.isActive
+                                          ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                                          : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                                      }`}
+                                      title="Klik untuk membuka / menutup akses pengerjaan"
+                                    >
+                                      {exam.isActive ? "BUKA (Aktif)" : "TUTUP"}
+                                    </button>
+                                  </div>
+
+                                  <div className="mt-2 text-[11px] text-slate-500 flex items-center gap-2">
+                                    <span>
+                                      Total Poin: {exam.questions.reduce((a, b) => a + b.points, 0)} Poin
+                                    </span>
+                                    <span>&bull;</span>
+                                    <span>
+                                      Min Kata: {exam.minWords > 0 ? `${exam.minWords} kata` : "Bebas"}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+                                  <button
+                                    onClick={() => setViewingQuestionsExamId(exam.id)}
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 cursor-pointer"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                                    <span>Kelola Butir Soal ({exam.questions.length}) &rarr;</span>
+                                  </button>
+
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => {
+                                        setEditingExam(exam);
+                                        setExamSubjectName(exam.subjectName || subjectName);
+                                        setExamTitle(exam.title);
+                                        setDurationMinutes(exam.durationMinutes);
+                                        setMinWords(exam.minWords);
+                                        setIsExamModalOpen(true);
+                                      }}
+                                      className="text-slate-600 hover:text-slate-900 text-xs font-semibold cursor-pointer"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteExam(exam)}
+                                      className="text-red-600 hover:text-red-800 text-xs font-semibold cursor-pointer"
+                                    >
+                                      Hapus
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
-                })
-              )}
+                })}
+              </div>
             </div>
-
-            {/* Right Column: Questions of Selected Exam */}
-            <div className="lg:col-span-2 space-y-4">
-              {activeExam ? (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                    <div>
-                      {activeExam.subjectName && (
-                        <span className="text-xs font-bold text-emerald-800 uppercase tracking-wide block">
-                          {activeExam.subjectName}
-                        </span>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-bold text-slate-900">
-                          {activeExam.title} &mdash; Soal ({activeExam.questions.length})
-                        </h3>
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            activeExam.isActive
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {activeExam.isActive ? "Bisa Dikerjakan" : "Non-Aktif"}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Total Poin: {activeExam.questions.reduce((a, b) => a + b.points, 0)} Poin &bull; Durasi: {activeExam.durationMinutes} Menit
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => handleOpenAddQuestion(activeExam)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs cursor-pointer"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Tambah Butir Soal</span>
-                    </button>
-                  </div>
-
-                  {activeExam.questions.length === 0 ? (
-                    <div className="py-12 text-center">
-                      <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                      <p className="text-sm font-semibold text-slate-700">Belum Ada Butir Soal</p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Tambahkan soal essay untuk mata kuliah/penugasan ini. Anda juga bisa menyalakan switch upload file jika soal membutuhkan diagram atau lampiran.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {activeExam.questions.map((q, idx) => (
-                        <div
-                          key={q.id}
-                          className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-start justify-between gap-4"
-                        >
-                          <div className="space-y-2 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="w-6 h-6 rounded-md bg-emerald-800 text-white text-xs font-bold flex items-center justify-center">
-                                {idx + 1}
-                              </span>
-                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-white border border-slate-200 text-slate-700">
-                                Bobot: {q.points} Poin
-                              </span>
-                              {q.allowFileUpload ? (
-                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                                  <Upload className="w-3 h-3 text-purple-600" />
-                                  <span>Upload Diagram / File Diaktifkan</span>
-                                </span>
-                              ) : (
-                                <span className="text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                                  Teks Essay Murni
-                                </span>
-                              )}
-                            </div>
-
-                            <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">
-                              {q.text}
-                            </p>
-                          </div>
-
-                          {/* Action Controls */}
-                          <div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
-                            <button
-                              onClick={() => handleReorderQuestion(activeExam, idx, "up")}
-                              disabled={idx === 0}
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
-                              title="Pindah ke Atas"
-                            >
-                              <ArrowUp className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleReorderQuestion(activeExam, idx, "down")}
-                              disabled={idx === activeExam.questions.length - 1}
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
-                              title="Pindah ke Bawah"
-                            >
-                              <ArrowDown className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleOpenEditQuestion(activeExam, q)}
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer ml-1"
-                              title="Edit Soal"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteQuestion(q.id)}
-                              className="p-1 rounded text-slate-400 hover:text-red-600 cursor-pointer"
-                              title="Hapus Soal"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400">
-                  Pilih paket penugasan di sebelah kiri untuk melihat dan mengelola butir soal.
-                </div>
-              )}
-            </div>
-          </div>
+          )}
         </div>
       )}
 
@@ -1545,6 +1824,65 @@ function ClassHubContent() {
                 >
                   {savingQuestion && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{editingQuestion ? "Simpan Perubahan" : "Tambahkan Soal"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: TAMBAH MATA KULIAH BARU */}
+      {isAddSubjectModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-800 flex items-center justify-center">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Tambah Mata Kuliah Baru
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsAddSubjectModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg font-bold cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleAddSubject} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                  Nama Mata Kuliah <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: Metodologi Penelitian Pendidikan"
+                  value={newSubjectInput}
+                  onChange={(e) => setNewSubjectInput(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+                />
+                <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
+                  Kartu mata kuliah ini akan dibuat di dalam Kelas {classMeta?.name}. Anda langsung dapat menambahkan paket tugas/ujian di dalamnya.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAddSubjectModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs cursor-pointer transition-colors"
+                >
+                  Buat Mata Kuliah
                 </button>
               </div>
             </form>

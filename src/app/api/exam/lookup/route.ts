@@ -55,6 +55,24 @@ export async function GET(request: Request) {
     // Ambil nama mahasiswa dari data pertama
     const studentName = students[0].name;
 
+    // Periksa apakah mahasiswa memiliki izin mengikuti ujian (kehadiran cukup)
+    const allowedStudents = students.filter((s) => s.isAllowed !== false);
+    const hasDisallowed = students.some((s) => s.isAllowed === false);
+
+    if (allowedStudents.length === 0) {
+      const reason =
+        students[0].allowExamReason ||
+        'Kehadiran Anda tidak mencukupi batas minimum / status ditangguhkan oleh dosen pengampu.';
+      return NextResponse.json({
+        found: true,
+        isAllowed: false,
+        studentName,
+        studentNim: students[0].nim,
+        message: reason,
+        availableExams: [],
+      });
+    }
+
     // Ambil semua kelas dan penugasan yang tersedia untuk mahasiswa ini
     const availableExams: {
       examId: string;
@@ -71,7 +89,7 @@ export async function GET(request: Request) {
     }[] = [];
 
     // Cek sesi ujian yang sudah pernah dibuat oleh mahasiswa ini
-    const examIds = students.flatMap((s) => s.class.exams.map((e) => e.id));
+    const examIds = allowedStudents.flatMap((s) => s.class.exams.map((e) => e.id));
     const existingSessions = await prisma.examSession.findMany({
       where: {
         examId: { in: examIds },
@@ -84,7 +102,7 @@ export async function GET(request: Request) {
       },
     });
 
-    for (const s of students) {
+    for (const s of allowedStudents) {
       for (const exam of s.class.exams) {
         const session = existingSessions.find((sess) => sess.examId === exam.id);
         const status = !session
@@ -111,6 +129,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       found: true,
+      isAllowed: true,
       studentNim: students[0].nim,
       studentName,
       availableExams,

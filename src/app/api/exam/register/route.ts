@@ -40,6 +40,22 @@ export async function POST(request: Request) {
       return errorResponse('Ujian ini tidak aktif', 400);
     }
 
+    // Periksa izin ujian mahasiswa (kehadiran)
+    const studentRecord = await prisma.student.findFirst({
+      where: {
+        classId: exam.classId,
+        nim: { equals: studentNim.trim(), mode: 'insensitive' },
+      },
+    });
+
+    if (studentRecord && studentRecord.isAllowed === false) {
+      return errorResponse(
+        studentRecord.allowExamReason ||
+          'Mohon maaf, Anda belum diperkenankan mengikuti ujian ini karena kehadiran kurang atau status ditangguhkan. Silakan hubungi dosen Anda.',
+        403
+      );
+    }
+
     const existingSession = await prisma.examSession.findFirst({
       where: {
         examId,

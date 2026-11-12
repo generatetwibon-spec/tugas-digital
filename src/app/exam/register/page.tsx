@@ -43,6 +43,8 @@ function ExamRegisterContent() {
   const [checkingNim, setCheckingNim] = useState(false);
   const [studentName, setStudentName] = useState<string | null>(null);
   const [verifiedNim, setVerifiedNim] = useState<string | null>(null);
+  const [isAllowed, setIsAllowed] = useState(true);
+  const [disallowReason, setDisallowReason] = useState<string | null>(null);
   const [availableExams, setAvailableExams] = useState<AvailableExam[]>([]);
   const [selectedExamId, setSelectedExamId] = useState<string>("");
   const [startingSession, setStartingSession] = useState(false);
@@ -60,6 +62,8 @@ function ExamRegisterContent() {
       setCheckingNim(true);
       setStudentName(null);
       setVerifiedNim(null);
+      setIsAllowed(true);
+      setDisallowReason(null);
       setAvailableExams([]);
       setSelectedExamId("");
 
@@ -76,6 +80,15 @@ function ExamRegisterContent() {
 
       setStudentName(data.studentName);
       setVerifiedNim(data.studentNim);
+
+      if (data.isAllowed === false) {
+        setIsAllowed(false);
+        setDisallowReason(data.message || "Kehadiran kurang dari batas minimum.");
+        toast.error("Status ujian Anda ditangguhkan oleh dosen.");
+        return;
+      }
+
+      setIsAllowed(true);
       setAvailableExams(data.availableExams || []);
 
       if (data.availableExams && data.availableExams.length > 0) {
@@ -324,8 +337,32 @@ function ExamRegisterContent() {
               </div>
             </form>
 
-            {/* Step 2: Auto-Filled Profile & Available Exams */}
-            {studentName && verifiedNim && (
+            {/* Step 2: Auto-Filled Profile & Available Exams / Disallowed notice */}
+            {studentName && verifiedNim && !isAllowed && (
+              <div className="p-5 rounded-xl bg-rose-50 border border-rose-200 space-y-3 animate-in fade-in duration-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                    <AlertCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block">
+                      Status Ujian Ditangguhkan
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900 mt-0.5">
+                      {studentName} ({verifiedNim})
+                    </h3>
+                    <p className="text-xs text-rose-700 mt-1">
+                      {disallowReason || "Kehadiran Anda tidak mencukupi batas minimum untuk mengikuti ujian pada kelas ini."}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-2">
+                      Silakan hubungi dosen pengampu mata kuliah untuk konfirmasi presensi atau pengurusan dispensasi.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {studentName && verifiedNim && isAllowed && (
               <div className="p-5 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-4 animate-in fade-in duration-200">
                 {/* Profile Box */}
                 <div className="flex items-start justify-between pb-3 border-b border-emerald-200/80">

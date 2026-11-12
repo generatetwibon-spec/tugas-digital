@@ -42,12 +42,14 @@ model Class {
 }
 
 model Student {
-  id        String   @id @default(cuid())
-  nim       String
-  name      String
-  classId   String
-  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  nim             String
+  name            String
+  classId         String
+  class           Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  isAllowed       Boolean  @default(true) // Izin mengikuti ujian (false jika kehadiran kurang / dicekal)
+  allowExamReason String?  // Alasan pencekalan (contoh: "Kehadiran < 75%")
+  createdAt       DateTime @default(now())
 
   @@unique([classId, nim])
   @@index([nim])

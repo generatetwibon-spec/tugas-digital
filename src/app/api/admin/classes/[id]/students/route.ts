@@ -18,6 +18,14 @@ const editStudentSchema = z.object({
   studentId: z.string().min(1, 'ID mahasiswa wajib diisi'),
   nim: z.string().min(1, 'NIM mahasiswa wajib diisi'),
   name: z.string().min(1, 'Nama mahasiswa wajib diisi'),
+  isAllowed: z.boolean().optional(),
+  allowExamReason: z.string().optional().nullable(),
+});
+
+const toggleEligibilitySchema = z.object({
+  studentId: z.string().min(1, 'ID mahasiswa wajib diisi'),
+  isAllowed: z.boolean(),
+  reason: z.string().optional().nullable(),
 });
 
 export async function GET(
@@ -77,6 +85,8 @@ export async function GET(
         id: student.id,
         nim: student.nim,
         name: student.name,
+        isAllowed: student.isAllowed !== false,
+        allowExamReason: student.allowExamReason || null,
         createdAt: student.createdAt,
         examsStatus: classData.exams.map((exam) => {
           const session = studentSessions.find((s) => s.examId === exam.id);
@@ -241,7 +251,7 @@ export async function PUT(
       return errorResponse(validation.error.issues[0]?.message || 'Input tidak valid', 400);
     }
 
-    const { studentId, nim, name } = validation.data;
+    const { studentId, nim, name, isAllowed, allowExamReason } = validation.data;
 
     // Cek apakah mahasiswa ada di kelas ini
     const student = await prisma.student.findUnique({
@@ -270,6 +280,8 @@ export async function PUT(
       data: {
         nim: nim.trim(),
         name: name.trim(),
+        ...(typeof isAllowed === 'boolean' ? { isAllowed } : {}),
+        ...(allowExamReason !== undefined ? { allowExamReason } : {}),
       },
     });
 
@@ -277,6 +289,47 @@ export async function PUT(
   } catch (err) {
     console.error('Error updating student:', err);
     return errorResponse('Gagal memperbarui data mahasiswa', 500);
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { error } = await requireAdmin();
+  if (error) return error;
+
+  try {
+    const { id: classId } = await params;
+    const body = await request.json();
+    const validation = toggleEligibilitySchema.safeParse(body);
+
+    if (!validation.success) {
+      return errorResponse(validation.error.issues[0]?.message || 'Input tidak valid', 400);
+    }
+
+    const { studentId, isAllowed, reason } = validation.data;
+
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+    });
+
+    if (!student || student.classId !== classId) {
+      return errorResponse('Mahasiswa tidak ditemukan di kelas ini', 404);
+    }
+
+    const updated = await prisma.student.update({
+      where: { id: studentId },
+      data: {
+        isAllowed,
+        allowExamReason: isAllowed ? null : (reason || 'Kehadiran tidak mencukupi / status ditangguhkan'),
+      },
+    });
+
+    return successResponse(updated);
+  } catch (err) {
+    console.error('Error toggling student exam eligibility:', err);
+    return errorResponse('Gagal mengubah izin ujian mahasiswa', 500);
   }
 }
 

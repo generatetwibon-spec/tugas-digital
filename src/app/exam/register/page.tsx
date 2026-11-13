@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   GraduationCap,
   ArrowLeft,
@@ -296,13 +297,35 @@ function ExamRegisterContent() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-xl">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-emerald-700 mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Kembali ke Halaman Depan</span>
-        </Link>
+        <div className="flex items-center justify-between mb-6">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-emerald-700 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Kembali ke Halaman Depan</span>
+          </Link>
+
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-950 p-1 flex items-center justify-center shrink-0">
+              <Image
+                src="/images/iai-tabah-logo.png"
+                alt="Logo IAI TABAH"
+                width={32}
+                height={32}
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] font-black tracking-widest text-emerald-800 uppercase block leading-none">
+                IAI TABAH LAMONGAN
+              </span>
+              <span className="text-[11px] font-semibold text-slate-600 block mt-0.5">
+                FTIK
+              </span>
+            </div>
+          </div>
+        </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="h-2 bg-emerald-700 w-full" />

@@ -28,13 +28,21 @@ export async function GET(request: Request) {
           include: {
             subject: true,
             exams: {
-              where: { isActive: true },
+              where: {
+                OR: [
+                  { isActive: true },
+                  { startTime: { not: null } },
+                ],
+              },
               select: {
                 id: true,
                 title: true,
                 subjectName: true,
                 durationMinutes: true,
                 minWords: true,
+                isActive: true,
+                startTime: true,
+                endTime: true,
                 _count: {
                   select: { questions: true },
                 },
@@ -86,6 +94,10 @@ export async function GET(request: Request) {
       subjectLevel: string | null;
       status: string; // 'belum' | 'sedang' | 'selesai'
       sessionId?: string;
+      startTime: string | null;
+      endTime: string | null;
+      scheduleState: 'open' | 'upcoming' | 'ended';
+      scheduleMessage: string | null;
     }[] = [];
 
     // Cek sesi ujian yang sudah pernah dibuat oleh mahasiswa ini
@@ -102,6 +114,8 @@ export async function GET(request: Request) {
       },
     });
 
+    const now = new Date();
+
     for (const s of allowedStudents) {
       for (const exam of s.class.exams) {
         const session = existingSessions.find((sess) => sess.examId === exam.id);
@@ -111,6 +125,29 @@ export async function GET(request: Request) {
           ? 'selesai'
           : 'sedang_mengerjakan';
 
+        // Hitung status jadwal
+        let scheduleState: 'open' | 'upcoming' | 'ended' = 'open';
+        let scheduleMessage: string | null = null;
+
+        if (exam.startTime && now < new Date(exam.startTime)) {
+          scheduleState = 'upcoming';
+          const timeStr = new Date(exam.startTime).toLocaleString('id-ID', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          });
+          scheduleMessage = `Ujian belum dibuka. Dijadwalkan mulai: ${timeStr} WIB`;
+        } else if (exam.endTime && now > new Date(exam.endTime)) {
+          scheduleState = 'ended';
+          const timeStr = new Date(exam.endTime).toLocaleString('id-ID', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          });
+          scheduleMessage = `Waktu pelaksanaan ujian telah berakhir pada ${timeStr} WIB`;
+        } else if (!exam.startTime && !exam.endTime && !exam.isActive) {
+          scheduleState = 'ended';
+          scheduleMessage = 'Ujian sedang ditutup oleh dosen.';
+        }
+
         availableExams.push({
           examId: exam.id,
           examTitle: exam.title,
@@ -119,10 +156,14 @@ export async function GET(request: Request) {
           totalQuestions: exam._count.questions,
           className: s.class.name,
           classId: s.class.id,
-          subjectName: exam.subjectName || s.class.subject?.name || "Mata Kuliah Umum",
+          subjectName: exam.subjectName || s.class.subject?.name || 'Mata Kuliah Umum',
           subjectLevel: s.class.level || s.class.subject?.level || null,
           status,
           sessionId: session?.id,
+          startTime: exam.startTime ? exam.startTime.toISOString() : null,
+          endTime: exam.endTime ? exam.endTime.toISOString() : null,
+          scheduleState,
+          scheduleMessage,
         });
       }
     }

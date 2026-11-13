@@ -8,6 +8,8 @@ const updateExamSchema = z.object({
   durationMinutes: z.number().int().min(1, 'Durasi minimal 1 menit').optional(),
   minWords: z.number().int().min(0, 'Minimal kata tidak boleh negatif').optional(),
   isActive: z.boolean().optional(),
+  startTime: z.string().optional().nullable(),
+  endTime: z.string().optional().nullable(),
 });
 
 export async function GET(
@@ -66,7 +68,7 @@ export async function PUT(
       return errorResponse('Ujian tidak ditemukan', 404);
     }
 
-    const { title, subjectName, durationMinutes, minWords, isActive } = validation.data;
+    const { title, subjectName, durationMinutes, minWords, isActive, startTime, endTime } = validation.data;
 
     const exam = await prisma.exam.update({
       where: { id },
@@ -76,6 +78,12 @@ export async function PUT(
         ...(durationMinutes !== undefined && { durationMinutes }),
         ...(minWords !== undefined && { minWords }),
         ...(isActive !== undefined && { isActive }),
+        ...(startTime !== undefined && {
+          startTime: startTime ? new Date(startTime) : null,
+        }),
+        ...(endTime !== undefined && {
+          endTime: endTime ? new Date(endTime) : null,
+        }),
       },
       include: {
         questions: {

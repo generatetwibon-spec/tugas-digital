@@ -64,6 +64,8 @@ model Exam {
   durationMinutes Int           @default(90)
   minWords        Int           @default(0)
   isActive        Boolean       @default(false)
+  startTime       DateTime?     // Tanggal & Jam Mulai Ujian (Jadwal Otomatis)
+  endTime         DateTime?     // Tanggal & Jam Selesai Ujian (Jadwal Otomatis)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   questions       Question[]

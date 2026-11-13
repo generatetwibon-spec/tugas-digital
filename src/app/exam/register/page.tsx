@@ -33,6 +33,10 @@ interface AvailableExam {
   subjectLevel: string | null;
   status: "belum" | "sedang_mengerjakan" | "selesai";
   sessionId?: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  scheduleState?: "open" | "upcoming" | "ended";
+  scheduleMessage?: string | null;
 }
 
 function ExamRegisterContent() {
@@ -112,6 +116,16 @@ function ExamRegisterContent() {
 
     if (selectedExam.status === "selesai") {
       toast.info("Anda sudah menyelesaikan penugasan ini.");
+      return;
+    }
+
+    if (selectedExam.scheduleState === "upcoming") {
+      toast.warning(selectedExam.scheduleMessage || "Ujian belum dibuka sesuai jadwal.");
+      return;
+    }
+
+    if (selectedExam.scheduleState === "ended") {
+      toast.error(selectedExam.scheduleMessage || "Waktu pelaksanaan ujian telah berakhir.");
       return;
     }
 
@@ -424,6 +438,21 @@ function ExamRegisterContent() {
                                       Sedang Berjalan
                                     </span>
                                   )}
+                                  {exam.scheduleState === "upcoming" && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                                      🕒 Belum Dibuka
+                                    </span>
+                                  )}
+                                  {exam.scheduleState === "ended" && exam.status !== "selesai" && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-300">
+                                      Ditutup
+                                    </span>
+                                  )}
+                                  {exam.scheduleState === "open" && exam.startTime && (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                                      🟢 Sedang Aktif
+                                    </span>
+                                  )}
                                 </div>
                                 <span className="text-xs font-bold text-slate-900 block">
                                   {exam.examTitle}
@@ -431,6 +460,13 @@ function ExamRegisterContent() {
                                 <p className="text-[11px] text-slate-500 mt-0.5">
                                   Kelas {exam.className} &bull; {exam.totalQuestions} Soal
                                 </p>
+                                {exam.scheduleMessage && (
+                                  <p className={`text-[10px] mt-1 font-medium ${
+                                    exam.scheduleState === "upcoming" ? "text-amber-700" : exam.scheduleState === "ended" ? "text-slate-500" : "text-emerald-700"
+                                  }`}>
+                                    {exam.scheduleMessage}
+                                  </p>
+                                )}
                               </div>
 
                               <div className="text-right text-[11px] text-slate-500 whitespace-nowrap">
@@ -474,6 +510,22 @@ function ExamRegisterContent() {
                             )}
                           </button>
                         )}
+                      </div>
+                    ) : selectedExam.scheduleState === "upcoming" ? (
+                      <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-amber-700 shrink-0" />
+                        <div>
+                          <p className="font-bold">Ujian Belum Dibuka</p>
+                          <p className="text-[11px] text-amber-700 mt-0.5">{selectedExam.scheduleMessage}</p>
+                        </div>
+                      </div>
+                    ) : selectedExam.scheduleState === "ended" ? (
+                      <div className="p-3.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-700 text-xs flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-slate-500 shrink-0" />
+                        <div>
+                          <p className="font-bold">Waktu Ujian Telah Ditutup</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{selectedExam.scheduleMessage}</p>
+                        </div>
                       </div>
                     ) : (
                       <button

@@ -8,6 +8,8 @@ const createExamSchema = z.object({
   classId: z.string().min(1, 'ID kelas wajib diisi'),
   durationMinutes: z.number().int().min(1, 'Durasi minimal 1 menit'),
   minWords: z.number().int().min(0, 'Minimal kata tidak boleh negatif').default(0),
+  startTime: z.string().optional().nullable(),
+  endTime: z.string().optional().nullable(),
 });
 
 export async function GET(request: Request) {
@@ -54,7 +56,7 @@ export async function POST(request: Request) {
       return errorResponse(validation.error.issues[0]?.message || 'Input tidak valid', 400);
     }
 
-    const { title, subjectName, classId, durationMinutes, minWords } = validation.data;
+    const { title, subjectName, classId, durationMinutes, minWords, startTime, endTime } = validation.data;
 
     const classData = await prisma.class.findUnique({ where: { id: classId } });
     if (!classData) {
@@ -68,6 +70,9 @@ export async function POST(request: Request) {
         classId,
         durationMinutes,
         minWords,
+        startTime: startTime ? new Date(startTime) : null,
+        endTime: endTime ? new Date(endTime) : null,
+        isActive: !startTime && !endTime ? false : true,
       },
       include: {
         _count: {

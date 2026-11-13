@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
+import StudentSecurityGuard from "@/components/StudentSecurityGuard";
 
 export const metadata: Metadata = {
   title: "Sistem Ujian Digital",
@@ -19,6 +20,7 @@ export default function RootLayout({
   return (
     <html lang="id" className="light" style={{ colorScheme: "light" }}>
       <body className="font-sans antialiased bg-gray-50 text-gray-900">
+        <StudentSecurityGuard />
         {children}
         <Toaster position="top-right" richColors />
       </body>

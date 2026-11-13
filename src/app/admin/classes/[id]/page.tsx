@@ -66,6 +66,8 @@ interface ExamItem {
   durationMinutes: number;
   minWords: number;
   isActive: boolean;
+  startTime: string | null;
+  endTime: string | null;
   questions: QuestionItem[];
   _count?: {
     questions: number;
@@ -120,6 +122,9 @@ function ClassHubContent() {
   const [examTitle, setExamTitle] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(90);
   const [minWords, setMinWords] = useState(0);
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [examStartTime, setExamStartTime] = useState("");
+  const [examEndTime, setExamEndTime] = useState("");
   const [savingExam, setSavingExam] = useState(false);
 
   // Question Modal
@@ -410,11 +415,44 @@ function ClassHubContent() {
     toast.success(`Mata kuliah "${subjectName}" siap ditambahkan tugas.`);
 
     // Langsung buka modal buat tugas pertama untuk matkul ini
+    handleOpenAddExam(subjectName);
+  };
+
+  // Open Add Exam Modal
+  const handleOpenAddExam = (subjectName: string = "") => {
     setEditingExam(null);
     setExamSubjectName(subjectName);
     setExamTitle("");
     setDurationMinutes(90);
     setMinWords(0);
+    setIsScheduled(false);
+    setExamStartTime("");
+    setExamEndTime("");
+    setIsExamModalOpen(true);
+  };
+
+  // Open Edit Exam Modal
+  const handleOpenEditExam = (exam: ExamItem, subjectNameFallback: string = "") => {
+    setEditingExam(exam);
+    setExamSubjectName(exam.subjectName || subjectNameFallback);
+    setExamTitle(exam.title);
+    setDurationMinutes(exam.durationMinutes);
+    setMinWords(exam.minWords);
+    setIsScheduled(!!(exam.startTime || exam.endTime));
+    if (exam.startTime) {
+      const d = new Date(exam.startTime);
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      setExamStartTime(d.toISOString().slice(0, 16));
+    } else {
+      setExamStartTime("");
+    }
+    if (exam.endTime) {
+      const d = new Date(exam.endTime);
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      setExamEndTime(d.toISOString().slice(0, 16));
+    } else {
+      setExamEndTime("");
+    }
     setIsExamModalOpen(true);
   };
 
@@ -451,6 +489,17 @@ function ClassHubContent() {
       return;
     }
 
+    if (isScheduled) {
+      if (!examStartTime || !examEndTime) {
+        toast.error("Silakan tentukan Waktu Mulai dan Waktu Selesai jadwal ujian");
+        return;
+      }
+      if (new Date(examEndTime) <= new Date(examStartTime)) {
+        toast.error("Waktu selesai harus lebih lambat dari waktu mulai");
+        return;
+      }
+    }
+
     try {
       setSavingExam(true);
       const url = editingExam
@@ -467,6 +516,8 @@ function ClassHubContent() {
           classId,
           durationMinutes: Number(durationMinutes),
           minWords: Number(minWords),
+          startTime: isScheduled && examStartTime ? new Date(examStartTime).toISOString() : null,
+          endTime: isScheduled && examEndTime ? new Date(examEndTime).toISOString() : null,
         }),
       });
 
@@ -1304,14 +1355,7 @@ function ClassHubContent() {
                   </button>
 
                   <button
-                    onClick={() => {
-                      setEditingExam(null);
-                      setExamSubjectName(allSubjectNames[0] || "");
-                      setExamTitle("");
-                      setDurationMinutes(90);
-                      setMinWords(0);
-                      setIsExamModalOpen(true);
-                    }}
+                    onClick={() => handleOpenAddExam(allSubjectNames[0] || "")}
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs cursor-pointer transition-colors"
                   >
                     <Plus className="w-4 h-4" />
@@ -1354,14 +1398,7 @@ function ClassHubContent() {
                         </div>
 
                         <button
-                          onClick={() => {
-                            setEditingExam(null);
-                            setExamSubjectName(subjectName);
-                            setExamTitle("");
-                            setDurationMinutes(90);
-                            setMinWords(0);
-                            setIsExamModalOpen(true);
-                          }}
+                          onClick={() => handleOpenAddExam(subjectName)}
                           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs cursor-pointer transition-colors self-start sm:self-auto"
                         >
                           <Plus className="w-3.5 h-3.5" />
@@ -1381,14 +1418,7 @@ function ClassHubContent() {
                               Tambahkan tugas mandiri, kuis, UTS, atau UAS untuk mahasiswa kelas {classMeta?.name}.
                             </p>
                             <button
-                              onClick={() => {
-                                setEditingExam(null);
-                                setExamSubjectName(subjectName);
-                                setExamTitle("");
-                                setDurationMinutes(90);
-                                setMinWords(0);
-                                setIsExamModalOpen(true);
-                              }}
+                              onClick={() => handleOpenAddExam(subjectName)}
                               className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
                             >
                               <Plus className="w-3.5 h-3.5" />
@@ -1397,81 +1427,125 @@ function ClassHubContent() {
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {subjectExams.map((exam) => (
-                              <div
-                                key={exam.id}
-                                className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between"
-                              >
-                                <div>
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div>
-                                      <h4 className="font-bold text-sm text-slate-900 leading-snug">
-                                        {exam.title}
-                                      </h4>
-                                      <p className="text-xs text-slate-500 mt-1">
-                                        Durasi: {exam.durationMinutes} Menit &bull; {exam.questions.length} Butir Soal
-                                      </p>
+                            {subjectExams.map((exam) => {
+                              const now = new Date();
+                              const hasSchedule = !!(exam.startTime || exam.endTime);
+                              const isUpcoming = exam.startTime ? now < new Date(exam.startTime) : false;
+                              const isEnded = exam.endTime ? now > new Date(exam.endTime) : false;
+                              const isOngoing = hasSchedule && !isUpcoming && !isEnded;
+
+                              return (
+                                <div
+                                  key={exam.id}
+                                  className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between"
+                                >
+                                  <div>
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div>
+                                        <h4 className="font-bold text-sm text-slate-900 leading-snug">
+                                          {exam.title}
+                                        </h4>
+                                        <p className="text-xs text-slate-500 mt-1">
+                                          Durasi: {exam.durationMinutes} Menit &bull; {exam.questions.length} Butir Soal
+                                        </p>
+                                      </div>
+
+                                      {/* Schedule / Manual Switch Badge */}
+                                      {hasSchedule ? (
+                                        <div className="text-right shrink-0">
+                                          {isUpcoming && (
+                                            <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                                              🕒 Terjadwal
+                                            </span>
+                                          )}
+                                          {isOngoing && (
+                                            <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                                              🟢 Sedang Aktif
+                                            </span>
+                                          )}
+                                          {isEnded && (
+                                            <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-300">
+                                              🔴 Waktu Habis
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={() => handleToggleExamStatus(exam)}
+                                          className={`text-[10px] font-bold px-2.5 py-1 rounded-md transition-colors cursor-pointer shrink-0 border ${
+                                            exam.isActive
+                                              ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                                              : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                                          }`}
+                                          title="Klik untuk membuka / menutup akses pengerjaan"
+                                        >
+                                          {exam.isActive ? "BUKA (Aktif)" : "TUTUP"}
+                                        </button>
+                                      )}
                                     </div>
 
-                                    {/* Active Toggle Switch Button */}
-                                    <button
-                                      onClick={() => handleToggleExamStatus(exam)}
-                                      className={`text-[10px] font-bold px-2.5 py-1 rounded-md transition-colors cursor-pointer shrink-0 border ${
-                                        exam.isActive
-                                          ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
-                                          : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
-                                      }`}
-                                      title="Klik untuk membuka / menutup akses pengerjaan"
-                                    >
-                                      {exam.isActive ? "BUKA (Aktif)" : "TUTUP"}
-                                    </button>
+                                    {/* Schedule Details if available */}
+                                    {hasSchedule && (
+                                      <div className="mt-2 text-[11px] font-medium text-emerald-800 bg-emerald-50/70 p-2 rounded-lg border border-emerald-200/60 flex items-center gap-1.5">
+                                        <Clock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                                        <span>
+                                          {exam.startTime &&
+                                            new Date(exam.startTime).toLocaleString("id-ID", {
+                                              day: "numeric",
+                                              month: "short",
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                            })}
+                                          {" — "}
+                                          {exam.endTime &&
+                                            new Date(exam.endTime).toLocaleString("id-ID", {
+                                              hour: "2-digit",
+                                              minute: "2-digit",
+                                            })}{" "}
+                                          WIB
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    <div className="mt-2 text-[11px] text-slate-500 flex items-center gap-2">
+                                      <span>
+                                        Total Poin: {exam.questions.reduce((a, b) => a + b.points, 0)} Poin
+                                      </span>
+                                      <span>&bull;</span>
+                                      <span>
+                                        Min Kata: {exam.minWords > 0 ? `${exam.minWords} kata` : "Bebas"}
+                                      </span>
+                                    </div>
                                   </div>
 
-                                  <div className="mt-2 text-[11px] text-slate-500 flex items-center gap-2">
-                                    <span>
-                                      Total Poin: {exam.questions.reduce((a, b) => a + b.points, 0)} Poin
-                                    </span>
-                                    <span>&bull;</span>
-                                    <span>
-                                      Min Kata: {exam.minWords > 0 ? `${exam.minWords} kata` : "Bebas"}
-                                    </span>
+                                  {/* Actions */}
+                                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+                                    <button
+                                      onClick={() => setViewingQuestionsExamId(exam.id)}
+                                      className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 cursor-pointer"
+                                    >
+                                      <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                                      <span>Kelola Butir Soal ({exam.questions.length}) &rarr;</span>
+                                    </button>
+
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => handleOpenEditExam(exam, subjectName)}
+                                        className="text-slate-600 hover:text-slate-900 text-xs font-semibold cursor-pointer"
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteExam(exam)}
+                                        className="text-red-600 hover:text-red-800 text-xs font-semibold cursor-pointer"
+                                      >
+                                        Hapus
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
-
-                                {/* Actions */}
-                                <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
-                                  <button
-                                    onClick={() => setViewingQuestionsExamId(exam.id)}
-                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 cursor-pointer"
-                                  >
-                                    <FileText className="w-3.5 h-3.5 text-emerald-700" />
-                                    <span>Kelola Butir Soal ({exam.questions.length}) &rarr;</span>
-                                  </button>
-
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => {
-                                        setEditingExam(exam);
-                                        setExamSubjectName(exam.subjectName || subjectName);
-                                        setExamTitle(exam.title);
-                                        setDurationMinutes(exam.durationMinutes);
-                                        setMinWords(exam.minWords);
-                                        setIsExamModalOpen(true);
-                                      }}
-                                      className="text-slate-600 hover:text-slate-900 text-xs font-semibold cursor-pointer"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteExam(exam)}
-                                      className="text-red-600 hover:text-red-800 text-xs font-semibold cursor-pointer"
-                                    >
-                                      Hapus
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -1720,6 +1794,58 @@ function ClassHubContent() {
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
                   />
                 </div>
+              </div>
+
+              {/* Jadwal Pelaksanaan Otomatis */}
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900">
+                      <Clock className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Jadwal Pelaksanaan Otomatis</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Atur tanggal dan jam mulai s/d selesai pengerjaan tugas/ujian ini.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={isScheduled}
+                      onChange={(e) => setIsScheduled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-10 h-5.5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-emerald-700"></div>
+                  </label>
+                </div>
+                {isScheduled && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/80">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Waktu Mulai <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="datetime-local"
+                        required={isScheduled}
+                        value={examStartTime}
+                        onChange={(e) => setExamStartTime(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Waktu Selesai <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="datetime-local"
+                        required={isScheduled}
+                        value={examEndTime}
+                        onChange={(e) => setExamEndTime(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-700 bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">

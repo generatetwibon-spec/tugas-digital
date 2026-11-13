@@ -33,6 +33,8 @@ export async function GET(request: Request) {
             subjectName: true,
             isActive: true,
             durationMinutes: true,
+            startTime: true,
+            endTime: true,
           },
           orderBy: { createdAt: 'desc' },
         },

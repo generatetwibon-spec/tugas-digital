@@ -16,6 +16,7 @@
   --color-primary-800: #065F46;
   --color-primary-900: #064E3B;
   --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Georgia', 'Cambria', 'Times New Roman', serif;
 }
 
 /* Global exam security styles */

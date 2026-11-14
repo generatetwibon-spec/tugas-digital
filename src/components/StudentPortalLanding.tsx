@@ -14,28 +14,61 @@ import {
   FileText,
 } from "lucide-react";
 
-interface StudentPortalLandingProps {
-  universityName?: string;
+export interface StudentPortalLandingProps {
+  institutionName?: string;
+  facultyName?: string;
   portalTitle?: string;
   portalSubtitle?: string;
+  heroHeadline?: string;
+  ctaButtonText?: string;
+  ctaHelperText?: string;
+  academicYear?: string;
+  logoUrl?: string | null;
+  heroImageUrl?: string | null;
   announcementTitle?: string;
   announcementBody?: string;
+  feature1Title?: string;
+  feature1Desc?: string;
+  feature2Title?: string;
+  feature2Desc?: string;
+  feature3Title?: string;
+  feature3Desc?: string;
+  footerText?: string;
 }
 
 export default function StudentPortalLanding({
-  universityName = "Fakultas Tarbiyah dan Ilmu Keguruan (FTIK)",
+  institutionName = "IAI TABAH LAMONGAN",
+  facultyName = "Fakultas Tarbiyah dan Ilmu Keguruan (FTIK)",
   portalTitle = "Portal Ujian & Penugasan Digital",
   portalSubtitle = "Platform Evaluasi Akademik Mahasiswa Terintegrasi",
+  heroHeadline = "Portal Ujian & Penugasan Digital",
+  ctaButtonText = "Mulai Masuk & Kerjakan Soal",
+  ctaHelperText = "Cukup siapkan NIM Anda yang telah didaftarkan di kelas",
+  academicYear = "Tahun Akademik 2026/2027",
+  logoUrl,
+  heroImageUrl,
   announcementTitle = "Petunjuk & Tata Tertib Pelaksanaan Ujian",
   announcementBody = "1. Pastikan koneksi internet stabil selama pengerjaan.\n2. Masukkan NIM yang valid untuk memuat identitas dan kelas secara otomatis.\n3. Dilarang melakukan kecurangan (sistem dilengkapi proteksi anti-contek dan anti-inspect).\n4. Jika batas waktu habis, lembar jawaban akan otomatis dikumpulkan ke sistem.",
+  feature1Title = "Uraian Essay & Lampiran Digital",
+  feature1Desc = "Tuliskan analisis dan uraian essay secara terstruktur. Lengkapi jawaban dengan unggahan diagram teknis, sketsa kurikulum, atau foto lembar kerja yang otomatis tercetak rapi ke berkas PDF.",
+  feature2Title = "Timer Realtime & Auto-Save Cloud",
+  feature2Desc = "Seluruh ketikan jawaban tersimpan otomatis secara berkala ke cloud. Tidak perlu khawatir apabila koneksi terputus sesaat atau terjadi gangguan perangkat, pengerjaan dapat langsung dilanjutkan.",
+  feature3Title = "Unduh Lembar Jawaban PDF Resmi",
+  feature3Desc = "Begitu ujian selesai dikumpulkan, mahasiswa dan dosen pengampu dapat langsung mengunduh salinan lembar jawaban berformat PDF resmi terverifikasi lengkap dengan waktu submit dan nama mahasiswa.",
+  footerText = "Hak Cipta Dilindungi.",
 }: StudentPortalLandingProps) {
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
 
+  // Logo source (fallback to default local image)
+  const activeLogo = logoUrl && logoUrl.trim() ? logoUrl : "/images/iai-tabah-logo.png";
+  // Hero illustration source (fallback to default local image)
+  const activeHeroImage = heroImageUrl && heroImageUrl.trim() ? heroImageUrl : "/images/student-hero.png";
+
   return (
     <div className="min-h-screen bg-[#02231c] text-slate-100 flex flex-col justify-between selection:bg-emerald-600 selection:text-white font-sans">
       {/* ========================================================
-          1. HEADER / BRANDING BAR (Aligned with Left Margin)
+          1. HEADER / BRANDING BAR (100% Dynamic)
       ======================================================== */}
       <header className="relative z-30 w-full border-b border-emerald-900/40 bg-[#02231c]/95 backdrop-blur-md">
         <div className="w-full max-w-[1400px] mx-auto px-5 sm:px-8 lg:px-12 h-20 flex items-center justify-between">
@@ -43,8 +76,8 @@ export default function StudentPortalLanding({
           <div className="flex items-center gap-3.5">
             <div className="relative w-11 h-11 rounded-xl bg-emerald-950/80 border border-emerald-500/30 p-1 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-950/40">
               <Image
-                src="/images/iai-tabah-logo.png"
-                alt="Logo IAI TABAH Lamongan"
+                src={activeLogo}
+                alt={`Logo ${institutionName}`}
                 width={40}
                 height={40}
                 className="w-full h-full object-contain"
@@ -53,34 +86,36 @@ export default function StudentPortalLanding({
             </div>
             <div className="flex flex-col">
               <span className="text-[10px] sm:text-[11px] font-black tracking-widest text-emerald-400 uppercase leading-none">
-                IAI TABAH LAMONGAN
+                {institutionName}
               </span>
               <span className="text-sm sm:text-base font-extrabold tracking-tight text-white leading-tight mt-0.5">
                 {portalTitle.toUpperCase()}
               </span>
               <span className="text-[11px] sm:text-xs font-medium text-emerald-200/80 truncate max-w-xs sm:max-w-md">
-                {universityName}
+                {facultyName}
               </span>
             </div>
           </div>
 
           {/* Academic Info */}
-          <div className="hidden sm:flex items-center gap-2 text-xs text-emerald-300/80 font-medium bg-emerald-950/60 px-3.5 py-1.5 rounded-full border border-emerald-700/30">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Tahun Akademik 2026/2027</span>
-          </div>
+          {academicYear && (
+            <div className="hidden sm:flex items-center gap-2 text-xs text-emerald-300/80 font-medium bg-emerald-950/60 px-3.5 py-1.5 rounded-full border border-emerald-700/30">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{academicYear}</span>
+            </div>
+          )}
         </div>
       </header>
 
       {/* ========================================================
-          2. HERO SECTION (Layout Pas & Text Digeser ke Kiri)
+          2. HERO SECTION (100% Dynamic Text & Graphics)
       ======================================================== */}
       <section className="relative w-full overflow-hidden bg-gradient-to-b from-[#02231c] via-[#043328] to-[#02231c] py-8 sm:py-12 lg:py-16 flex items-center">
-        {/* Soft Ambient Glows (Smooth & Non-Glaring) */}
+        {/* Soft Ambient Glows */}
         <div className="absolute top-1/4 left-1/6 w-80 h-80 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/3 right-1/6 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Clean Bottom-Left Circuit Board Graphic (No Duplicate Button) */}
+        {/* Bottom-Left Cyber Circuit Decor */}
         <div className="absolute bottom-0 left-0 w-60 sm:w-72 h-36 sm:h-44 pointer-events-none opacity-25 mix-blend-screen">
           <Image
             src="/images/circuit-decor.png"
@@ -94,14 +129,12 @@ export default function StudentPortalLanding({
         <div className="relative z-10 w-full max-w-[1400px] mx-auto px-5 sm:px-8 lg:px-12">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
             
-            {/* LEFT COLUMN: TITLE & CTAS (Posisi Pas di Sebelah Kiri) */}
+            {/* LEFT COLUMN: TITLE & CTAS */}
             <div className="lg:col-span-6 xl:col-span-6 space-y-6 text-left">
               {/* Main Headline */}
               <div className="space-y-2.5">
                 <h1 className="text-3xl sm:text-4xl lg:text-[50px] xl:text-[54px] font-black text-white tracking-tight leading-[1.14] drop-shadow-md">
-                  Portal Ujian &amp;
-                  <br />
-                  <span className="text-white">Penugasan Digital</span>
+                  {heroHeadline}
                 </h1>
                 <p className="text-sm sm:text-base lg:text-lg text-emerald-100/90 font-medium leading-relaxed max-w-lg">
                   {portalSubtitle}
@@ -110,16 +143,16 @@ export default function StudentPortalLanding({
 
               {/* Action Buttons Row */}
               <div className="pt-1 flex flex-wrap items-center gap-3">
-                {/* Primary Button: Pill with Smooth Emerald Gradient & Amber Tip */}
+                {/* Primary Button */}
                 <Link
                   href="/exam/register"
                   className="group relative inline-flex items-center gap-3 px-6 sm:px-7 py-3 sm:py-3.5 rounded-full bg-gradient-to-r from-emerald-600 via-emerald-600 to-amber-500 hover:from-emerald-500 hover:via-emerald-500 hover:to-amber-400 text-white font-bold text-sm sm:text-base shadow-lg shadow-emerald-950/60 hover:shadow-emerald-600/30 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
                 >
-                  <span>Mulai Masuk &amp; Kerjakan Soal</span>
+                  <span>{ctaButtonText}</span>
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
 
-                {/* Secondary Button 1: Info (Opens Tata Tertib Modal) */}
+                {/* Secondary Button 1: Info */}
                 <button
                   type="button"
                   onClick={() => setIsRulesModalOpen(true)}
@@ -129,11 +162,11 @@ export default function StudentPortalLanding({
                   <Info className="w-4 h-4" />
                 </button>
 
-                {/* Secondary Button 2: Stats (Opens Standar Evaluasi Modal) */}
+                {/* Secondary Button 2: Stats */}
                 <button
                   type="button"
                   onClick={() => setIsStatsModalOpen(true)}
-                  title="Sistem &amp; Standar Evaluasi Akademik FTIK"
+                  title="Sistem &amp; Standar Evaluasi Akademik"
                   className="w-11 h-11 rounded-xl bg-emerald-950/70 hover:bg-emerald-900 border border-emerald-600/30 flex items-center justify-center text-amber-400 hover:text-amber-300 shadow-sm transition-all cursor-pointer hover:scale-105 active:scale-95"
                 >
                   <BarChart3 className="w-4 h-4" />
@@ -141,19 +174,21 @@ export default function StudentPortalLanding({
               </div>
 
               {/* Requirement Note */}
-              <div className="flex items-center gap-2 text-xs sm:text-sm text-emerald-300/90 font-medium pt-0.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Cukup siapkan NIM Anda yang telah didaftarkan di kelas</span>
-              </div>
+              {ctaHelperText && (
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-emerald-300/90 font-medium pt-0.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{ctaHelperText}</span>
+                </div>
+              )}
             </div>
 
-            {/* RIGHT COLUMN: CLEAN STUDENT & LAB ARTWORK (ZERO GHOST TEXT) */}
+            {/* RIGHT COLUMN: DYNAMIC HERO ARTWORK */}
             <div className="lg:col-span-6 xl:col-span-6 flex items-center justify-center lg:justify-end">
               <div className="w-full max-w-md lg:max-w-lg xl:max-w-xl">
                 <div className="relative rounded-2xl overflow-hidden border border-emerald-500/25 shadow-2xl shadow-emerald-950/80 bg-emerald-950/40">
                   <Image
-                    src="/images/student-hero.png"
-                    alt="Mahasiswi FTIK IAI TABAH Lamongan"
+                    src={activeHeroImage}
+                    alt={`Ilustrasi ${portalTitle}`}
                     width={560}
                     height={541}
                     className="w-full h-auto object-cover object-center filter brightness-105 contrast-105"
@@ -174,32 +209,34 @@ export default function StudentPortalLanding({
       ======================================================== */}
       <main className="w-full max-w-[1400px] mx-auto px-5 sm:px-8 lg:px-12 py-12 sm:py-16 space-y-12">
         {/* Tata Tertib Card */}
-        <div className="relative rounded-2xl bg-[#032e25]/90 border border-emerald-600/30 p-6 sm:p-8 shadow-xl shadow-emerald-950/40 backdrop-blur-md">
-          <div className="flex items-center justify-between pb-4 border-b border-emerald-800/40 flex-wrap gap-3">
-            <div className="flex items-center gap-3 text-white font-bold text-base sm:text-lg">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
-                <Info className="w-5 h-5" />
+        {announcementBody && (
+          <div className="relative rounded-2xl bg-[#032e25]/90 border border-emerald-600/30 p-6 sm:p-8 shadow-xl shadow-emerald-950/40 backdrop-blur-md">
+            <div className="flex items-center justify-between pb-4 border-b border-emerald-800/40 flex-wrap gap-3">
+              <div className="flex items-center gap-3 text-white font-bold text-base sm:text-lg">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+                  <Info className="w-5 h-5" />
+                </div>
+                <span>{announcementTitle}</span>
               </div>
-              <span>{announcementTitle}</span>
+              <span className="text-[11px] font-bold text-emerald-300 bg-emerald-950 px-3 py-1 rounded-full border border-emerald-600/40 uppercase tracking-wider">
+                {facultyName}
+              </span>
             </div>
-            <span className="text-[11px] font-bold text-emerald-300 bg-emerald-950 px-3 py-1 rounded-full border border-emerald-600/40 uppercase tracking-wider">
-              {universityName}
-            </span>
-          </div>
 
-          <div className="mt-4 text-xs sm:text-sm text-emerald-100/90 leading-relaxed whitespace-pre-wrap font-sans bg-black/20 p-4 sm:p-5 rounded-xl border border-emerald-800/30">
-            {announcementBody}
+            <div className="mt-4 text-xs sm:text-sm text-emerald-100/90 leading-relaxed whitespace-pre-wrap font-sans bg-black/20 p-4 sm:p-5 rounded-xl border border-emerald-800/30">
+              {announcementBody}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Feature Cards Grid */}
+        {/* 3 Feature Cards Grid */}
         <div className="space-y-6">
           <div className="text-center max-w-2xl mx-auto space-y-1.5">
             <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-              Keunggulan Platform Ujian Digital FTIK
+              Keunggulan Platform Ujian Digital
             </h2>
             <p className="text-xs sm:text-sm text-emerald-200/80">
-              Pengalaman evaluasi akademik terstandarisasi untuk integritas, ketelitian, dan kenyamanan mahasiswa.
+              Pengalaman evaluasi akademik terstandarisasi untuk integritas, ketelitian, dan kenyamanan seluruh mahasiswa.
             </p>
           </div>
 
@@ -210,10 +247,10 @@ export default function StudentPortalLanding({
                 <FileText className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-white text-base">
-                Uraian Essay &amp; Lampiran Digital
+                {feature1Title}
               </h3>
               <p className="text-xs text-emerald-200/80 leading-relaxed">
-                Tuliskan analisis dan uraian essay secara terstruktur. Lengkapi jawaban dengan unggahan diagram teknis, sketsa kurikulum, atau foto lembar kerja yang otomatis tercetak rapi ke berkas PDF.
+                {feature1Desc}
               </p>
             </div>
 
@@ -223,10 +260,10 @@ export default function StudentPortalLanding({
                 <Clock className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-white text-base">
-                Timer Realtime &amp; Auto-Save Cloud
+                {feature2Title}
               </h3>
               <p className="text-xs text-emerald-200/80 leading-relaxed">
-                Seluruh ketikan jawaban tersimpan otomatis secara berkala ke cloud. Tidak perlu khawatir apabila koneksi terputus sesaat atau terjadi gangguan perangkat, pengerjaan dapat langsung dilanjutkan.
+                {feature2Desc}
               </p>
             </div>
 
@@ -236,10 +273,10 @@ export default function StudentPortalLanding({
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-white text-base">
-                Unduh Lembar Jawaban PDF Resmi
+                {feature3Title}
               </h3>
               <p className="text-xs text-emerald-200/80 leading-relaxed">
-                Begitu ujian selesai dikumpulkan, mahasiswa dan dosen pengampu dapat langsung mengunduh salinan lembar jawaban berformat PDF resmi terverifikasi lengkap dengan waktu submit dan nama mahasiswa.
+                {feature3Desc}
               </p>
             </div>
           </div>
@@ -252,18 +289,18 @@ export default function StudentPortalLanding({
       <footer className="w-full border-t border-emerald-900/50 bg-[#011813] py-8 text-center text-xs text-emerald-300/70">
         <div className="max-w-[1400px] mx-auto px-4 space-y-2">
           <div className="flex items-center justify-center gap-2">
-            <span className="font-bold text-emerald-200">IAI TABAH Lamongan</span>
+            <span className="font-bold text-emerald-200">{institutionName}</span>
             <span>&bull;</span>
-            <span>{universityName}</span>
+            <span>{facultyName}</span>
           </div>
           <p className="text-[11px] text-emerald-400/60">
-            &copy; 2026 {universityName} - Institut Agama Islam Tarbiyatut Tholabah (IAI TABAH) Lamongan. Hak Cipta Dilindungi.
+            &copy; 2026 {facultyName} - {institutionName}. {footerText}
           </p>
         </div>
       </footer>
 
       {/* ========================================================
-          MODAL: PETUNJUK TATA TERTIB UJIAN (INFO ICON)
+          MODAL: PETUNJUK TATA TERTIB UJIAN
       ======================================================== */}
       {isRulesModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
@@ -271,7 +308,7 @@ export default function StudentPortalLanding({
             <div className="flex items-center justify-between pb-3 border-b border-emerald-800/40">
               <div className="flex items-center gap-2.5 text-white font-bold text-base">
                 <Info className="w-5 h-5 text-amber-400" />
-                <span>Petunjuk &amp; Tata Tertib Ujian FTIK</span>
+                <span>{announcementTitle}</span>
               </div>
               <button
                 type="button"
@@ -283,23 +320,8 @@ export default function StudentPortalLanding({
             </div>
 
             <div className="space-y-3 text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
-              <div className="p-3.5 rounded-xl bg-black/25 border border-emerald-800/30 space-y-2">
-                <div className="flex items-start gap-2">
-                  <span className="font-bold text-amber-400">1.</span>
-                  <span><strong>Nomor Induk Mahasiswa (NIM):</strong> Pastikan Anda menggunakan NIM aktif yang telah terdaftar dalam sistem kelas oleh dosen pengampu.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="font-bold text-amber-400">2.</span>
-                  <span><strong>Integritas Akademik &amp; Anti-Contek:</strong> Sistem secara otomatis memantau keamanan ujian, memblokir developer tools, dan menonaktifkan fitur copy-paste.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="font-bold text-amber-400">3.</span>
-                  <span><strong>Penyimpanan Otomatis:</strong> Setiap jawaban essay tersimpan otomatis secara berkala ke database cloud.</span>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="font-bold text-amber-400">4.</span>
-                  <span><strong>Batas Waktu:</strong> Jika waktu pengerjaan berakhir, jawaban Anda akan langsung dikumpulkan otomatis ke dosen.</span>
-                </div>
+              <div className="p-4 rounded-xl bg-black/25 border border-emerald-800/30 whitespace-pre-wrap">
+                {announcementBody}
               </div>
             </div>
 
@@ -318,7 +340,7 @@ export default function StudentPortalLanding({
       )}
 
       {/* ========================================================
-          MODAL: STANDAR SISTEM EVALUASI AKADEMIK (STATS ICON)
+          MODAL: STANDAR SISTEM EVALUASI AKADEMIK
       ======================================================== */}
       {isStatsModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
@@ -326,7 +348,7 @@ export default function StudentPortalLanding({
             <div className="flex items-center justify-between pb-3 border-b border-emerald-800/40">
               <div className="flex items-center gap-2.5 text-white font-bold text-base">
                 <BarChart3 className="w-5 h-5 text-amber-400" />
-                <span>Standar Evaluasi Akademik FTIK</span>
+                <span>Standar Evaluasi Akademik</span>
               </div>
               <button
                 type="button"
@@ -339,7 +361,7 @@ export default function StudentPortalLanding({
 
             <div className="space-y-3 text-xs sm:text-sm text-emerald-100/90 leading-relaxed">
               <p className="text-xs text-emerald-300">
-                Sistem Penugasan &amp; Ujian Digital FTIK IAI TABAH Lamongan dirancang berbasis standar capaian pembelajaran:
+                Sistem Penugasan &amp; Ujian Digital {institutionName} dirancang berbasis standar capaian pembelajaran:
               </p>
 
               <div className="grid grid-cols-1 gap-2.5">
@@ -348,8 +370,8 @@ export default function StudentPortalLanding({
                     ✓
                   </div>
                   <div>
-                    <h4 className="font-bold text-white text-xs">Penilaian Terbobot &amp; Transparan</h4>
-                    <p className="text-[11px] text-emerald-200/80 mt-0.5">Setiap butir soal memiliki bobot poin jelas yang dinilai langsung oleh dosen pengampu.</p>
+                    <h4 className="font-bold text-white text-xs">{feature1Title}</h4>
+                    <p className="text-[11px] text-emerald-200/80 mt-0.5">{feature1Desc}</p>
                   </div>
                 </div>
 
@@ -358,8 +380,8 @@ export default function StudentPortalLanding({
                     ✓
                   </div>
                   <div>
-                    <h4 className="font-bold text-white text-xs">Verifikasi Kehadiran Terpadu</h4>
-                    <p className="text-[11px] text-emerald-200/80 mt-0.5">Mahasiswa wajib memenuhi syarat presensi kuliah untuk dapat membuka lembar penugasan.</p>
+                    <h4 className="font-bold text-white text-xs">{feature2Title}</h4>
+                    <p className="text-[11px] text-emerald-200/80 mt-0.5">{feature2Desc}</p>
                   </div>
                 </div>
 
@@ -368,8 +390,8 @@ export default function StudentPortalLanding({
                     ✓
                   </div>
                   <div>
-                    <h4 className="font-bold text-white text-xs">Arsip Lembar Jawaban PDF Resmi</h4>
-                    <p className="text-[11px] text-emerald-200/80 mt-0.5">Setiap pengumpulan menghasilkan dokumen PDF berstempel resmi yang dapat diunduh mahasiswa.</p>
+                    <h4 className="font-bold text-white text-xs">{feature3Title}</h4>
+                    <p className="text-[11px] text-emerald-200/80 mt-0.5">{feature3Desc}</p>
                   </div>
                 </div>
               </div>

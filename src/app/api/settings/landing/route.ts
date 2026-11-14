@@ -4,12 +4,27 @@ import { requireAdmin, successResponse, errorResponse } from '@/lib/utils';
 import { z } from 'zod';
 
 const updateLandingSchema = z.object({
+  institutionName: z.string().optional(),
+  facultyName: z.string().optional(),
   universityName: z.string().optional(),
   portalTitle: z.string().optional(),
   portalSubtitle: z.string().optional(),
+  heroHeadline: z.string().optional(),
+  ctaButtonText: z.string().optional(),
+  ctaHelperText: z.string().optional(),
+  academicYear: z.string().optional(),
+  logoUrl: z.string().nullable().optional(),
+  heroImageUrl: z.string().nullable().optional(),
   announcementTitle: z.string().optional(),
   announcementBody: z.string().optional(),
   bannerImageUrl: z.string().nullable().optional(),
+  feature1Title: z.string().optional(),
+  feature1Desc: z.string().optional(),
+  feature2Title: z.string().optional(),
+  feature2Desc: z.string().optional(),
+  feature3Title: z.string().optional(),
+  feature3Desc: z.string().optional(),
+  footerText: z.string().optional(),
 });
 
 export async function GET() {

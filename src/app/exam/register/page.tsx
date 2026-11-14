@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -54,6 +54,24 @@ function ExamRegisterContent() {
   const [selectedExamId, setSelectedExamId] = useState<string>("");
   const [startingSession, setStartingSession] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
+
+  // Dynamic branding
+  const [instName, setInstName] = useState("IAI TABAH LAMONGAN");
+  const [facName, setFacName] = useState("FTIK");
+  const [instLogo, setInstLogo] = useState("/images/iai-tabah-logo.png");
+
+  useEffect(() => {
+    fetch("/api/settings/landing")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.setting) {
+          if (data.setting.institutionName) setInstName(data.setting.institutionName);
+          if (data.setting.facultyName) setFacName(data.setting.facultyName);
+          if (data.setting.logoUrl) setInstLogo(data.setting.logoUrl);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Check NIM against database
   const handleCheckNim = async (e?: React.FormEvent) => {
@@ -309,8 +327,8 @@ function ExamRegisterContent() {
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-emerald-950 p-1 flex items-center justify-center shrink-0">
               <Image
-                src="/images/iai-tabah-logo.png"
-                alt="Logo IAI TABAH"
+                src={instLogo}
+                alt={`Logo ${instName}`}
                 width={32}
                 height={32}
                 className="w-full h-full object-contain"
@@ -318,10 +336,10 @@ function ExamRegisterContent() {
             </div>
             <div className="text-right">
               <span className="text-[10px] font-black tracking-widest text-emerald-800 uppercase block leading-none">
-                IAI TABAH LAMONGAN
+                {instName}
               </span>
-              <span className="text-[11px] font-semibold text-slate-600 block mt-0.5">
-                FTIK
+              <span className="text-[11px] font-semibold text-slate-600 block mt-0.5 max-w-[180px] truncate">
+                {facName}
               </span>
             </div>
           </div>
